@@ -1,0 +1,46 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+android {
+    namespace = "com.example.repoint"
+    compileSdk = 35
+    ndkVersion = flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+
+    defaultConfig {
+        applicationId "com.example.repoint"
+        minSdk = 28
+        targetSdk = 35
+        versionCode 1
+        versionName "1.0"
+
+        manifestPlaceholders = [
+                kakaoScheme: "kakaodd00c30573b12a8a81cd65b526943c99" // ✅ 괄호 없이 정확히
+        ]
+    }
+
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.debug
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.annotation:annotation:1.9.0'
+}
+
+flutter {
+    source = "../.."
+}
