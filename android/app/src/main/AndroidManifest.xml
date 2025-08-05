@@ -1,22 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.repoint">
 
-    <!-- 권한/피처 -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-feature android:name="android.hardware.camera.any" />
 
     <application
         android:label="repoint"
         android:icon="@mipmap/ic_launcher">
-        android:enableOnBackInvokedCallback="true"
-        <!-- (선택) Kakao SDK AppKey : 코드에서 KakaoSdk.init() 쓰면 생략 가능 -->
-        <meta-data
-            android:name="com.kakao.sdk.AppKey"
-            android:value="dd00c30573b12a8a81cd65b526943c99" />
 
         <activity
             android:name=".MainActivity"
@@ -28,44 +19,31 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
-            <!-- Flutter 기본 테마 메타데이터 -->
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
 
-            <!-- 런처 인텐트 -->
+            <meta-data
+                android:name="com.kakao.sdk.AppKey"
+                android:value="dd00c30573b12a8a81cd65b526943c99" />
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
         </activity>
 
-        <!-- 카카오 로그인 리다이렉트 처리 -->
-        <activity
-            android:name="com.kakao.sdk.flutter.AuthCodeCustomTabsActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="kakaodd00c30573b12a8a81cd65b526943c99"
-                    android:host="oauth" />
-            </intent-filter>
-        </activity>
-
-        <!-- Flutter 임베딩 버전 표기 -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
 
-    <!-- Android 11+ 패키지 가시성: 카카오톡 탐지용 -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
         </intent>
-        <package android:name="com.kakao.talk" />
     </queries>
+
 </manifest>

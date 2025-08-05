@@ -1,24 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
-import 'package:flutter/services.dart';   // ✅ 시스템 UI 제어용 import
+import 'screens/splash_screen.dart'; // 스플래시 화면
 
-import 'firebase_options.dart';        // flutterfire configure가 생성
-import 'screens/splash_screen.dart';
-
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Kakao 먼저 초기화
+  // Kakao SDK 초기화 - 반드시 runApp 전에!
   KakaoSdk.init(nativeAppKey: 'dd00c30573b12a8a81cd65b526943c99');
-
-  // ✅ Firebase 초기화 (각 플랫폼 옵션 적용)
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  // ✅ 앱 전체에서 상태바 + 네비게이션바 숨김 (Immersive 모드)
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   runApp(const MyApp());
 }
@@ -32,12 +20,10 @@ class MyApp extends StatelessWidget {
       title: 'RE:POINT',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        fontFamily: 'Pretendard',
+        fontFamily: 'Pretendard', // 선택사항
       ),
       debugShowCheckedModeBanner: false,
-      home: const SplashScreen(),
+      home: const SplashScreen(), // 첫 화면: 스플래시
     );
   }
 }
-
-

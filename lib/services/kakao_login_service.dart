@@ -12,17 +12,12 @@ class KakaoLoginService {
 
       final user = await UserApi.instance.me();
       final prefs = await SharedPreferences.getInstance();
-
       await prefs.setBool('isLoggedIn', true);
-      await prefs.setString('loginProvider', 'kakao');
-      await prefs.setString('userId', user.id.toString());
-      await prefs.setString('userEmail', user.kakaoAccount?.email ?? '');
-      await prefs.setString('userName', user.kakaoAccount?.profile?.nickname ?? '');
-      await prefs.setString('userPhoto', user.kakaoAccount?.profile?.profileImageUrl ?? '');
 
+      print("카카오 로그인 성공: ${user.kakaoAccount?.email}");
       return true;
     } catch (e) {
-      // print("카카오 로그인 실패: $e");
+      print("카카오 로그인 실패: $e");
       return false;
     }
   }
@@ -32,7 +27,10 @@ class KakaoLoginService {
       await UserApi.instance.logout();
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
-    } catch (_) {}
+      print("로그아웃 완료");
+    } catch (e) {
+      print("로그아웃 실패: $e");
+    }
   }
 
   static Future<bool> isLoggedIn() async {
@@ -43,7 +41,8 @@ class KakaoLoginService {
   static Future<User?> getUser() async {
     try {
       return await UserApi.instance.me();
-    } catch (_) {
+    } catch (e) {
+      print("유저 정보 가져오기 실패: $e");
       return null;
     }
   }

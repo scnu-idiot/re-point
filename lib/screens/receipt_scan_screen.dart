@@ -1,16 +1,8 @@
 import 'dart:io';
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-
-import '../utils/ocr_parsers.dart';
-import '../painters/receipt_guide_painter.dart';
-import '../widgets/scan_step_indicator.dart';
-
-enum CaptureStep { bizno, time, amount, review }
+import 'package:permission_handler/permission_handler.dart';
 
 class ReceiptScanScreen extends StatefulWidget {
   const ReceiptScanScreen({super.key});
@@ -20,454 +12,198 @@ class ReceiptScanScreen extends StatefulWidget {
 }
 
 class _ReceiptScanScreenState extends State<ReceiptScanScreen> {
-  CameraController? _controller;
-  final _textRecognizer = TextRecognizer();
-
-  bool _busy = false;
-  bool _torchOn = true;
-
-  CaptureStep _step = CaptureStep.bizno;
-
-  String? _bizno;        // ###-##-#####
-  String? _timeIso;      // +09:00 포함 저장
-  String? _timeDisplay;  // 화면 표시는 TZ 제거
-  int? _amount;
+  CameraController? _cameraController;
+  late final TextRecognizer _textRecognizer;
+  String _recognizedText = '';
+  bool _isBusy = false;
 
   @override
   void initState() {
     super.initState();
-    _initCamera();
+    _initializeCameraAndRecognizer();
   }
 
-  Future<void> _initCamera() async {
-    try {
-      final status = await Permission.camera.request();
-      if (!status.isGranted) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('카메라 권한이 필요합니다. 설정에서 허용해주세요.')),
-        );
-        return;
-      }
+  Future<void> _initializeCameraAndRecognizer() async {
+    await Permission.camera.request();
+    final cameras = await availableCameras();
+    final backCamera = cameras.firstWhere((camera) => camera.lensDirection == CameraLensDirection.back);
 
-      final cameras = await availableCameras();
-      final back = cameras.firstWhere(
-            (c) => c.lensDirection == CameraLensDirection.back,
-        orElse: () => cameras.first,
-      );
+    _cameraController = CameraController(backCamera, ResolutionPreset.medium);
+    await _cameraController!.initialize();
 
-      _controller = CameraController(
-        back,
-        ResolutionPreset.high,
-        enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.yuv420,
-      );
-      await _controller!.initialize();
+    _textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
 
-      try {
-        await _controller!.setFlashMode(FlashMode.auto);
-        _torchOn = true;
-      } catch (_) {
-        _torchOn = false;
-      }
+    if (mounted) setState(() {});
+  }
 
-      if (!mounted) return;
-      setState(() {});
-      _announceStep();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('카메라 초기화 실패: $e')),
-      );
-    }
+  Future<void> _captureAndRecognize() async {
+    if (_cameraController == null || _isBusy) return;
+    setState(() => _isBusy = true);
+
+    final picture = await _cameraController!.takePicture();
+    final inputImage = InputImage.fromFilePath(picture.path);
+    final recognizedText = await _textRecognizer.processImage(inputImage);
+
+    setState(() {
+      _recognizedText = recognizedText.text;
+      _isBusy = false;
+    });
   }
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _cameraController?.dispose();
     _textRecognizer.close();
     super.dispose();
   }
 
-  // ===== 단계 안내 =====
-  String _stepMessage([CaptureStep? s]) {
-    switch (s ?? _step) {
-      case CaptureStep.bizno:
-        return '사업자번호를 찍어주세요';
-      case CaptureStep.time:
-        return '거래일시를 찍어주세요';
-      case CaptureStep.amount:
-        return '총 금액(합계/총액)을 찍어주세요';
-      case CaptureStep.review:
-        return '인식 결과를 확인하세요';
-    }
-  }
-
-  Future<void> _showCenterDialog(String message) async {
-    if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          contentPadding: const EdgeInsets.fromLTRB(20, 24, 20, 4),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.info_outline, size: 28),
-              const SizedBox(height: 12),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('확인'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _announceStep([CaptureStep? step]) {
-    final msg = _stepMessage(step);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showCenterDialog(msg);
-    });
-  }
-
-  // ===== 촬영/인식 =====
-  Future<void> _shootAndRecognize() async {
-    final cam = _controller;
-    if (cam == null || !cam.value.isInitialized || _busy) return;
-    setState(() => _busy = true);
-
-    try {
-      final file = await cam.takePicture();
-      final input = InputImage.fromFile(File(file.path));
-      final result = await _textRecognizer.processImage(input);
-      final text = result.text;
-
-      bool ok = false;
-
-      switch (_step) {
-        case CaptureStep.bizno: {
-          final b = extractValidBizNo(text);
-          if (b != null) {
-            setState(() {
-              _bizno = b;
-            });
-            ok = true;
-          }
-          break;
-        }
-        case CaptureStep.time: {
-          final iso = extractDateTimeIso(text);
-          if (iso != null) {
-            setState(() {
-              _timeIso = iso;
-              _timeDisplay = stripTimezoneForDisplay(iso);
-            });
-            ok = true;
-          }
-          break;
-        }
-        case CaptureStep.amount: {
-          final a = extractAmountSmart(text);
-          if (a != null) {
-            setState(() {
-              _amount = a;
-            });
-            ok = true;
-          }
-          break;
-        }
-        case CaptureStep.review:
-          ok = true;
-          break;
-      }
-
-      if (!ok) {
-        final failMsg = _step == CaptureStep.bizno
-            ? '사업자번호를 인식하지 못했습니다. 다시 시도해주세요.'
-            : _step == CaptureStep.time
-            ? '거래일시를 인식하지 못했습니다. 다시 시도해주세요.'
-            : '총 금액을 인식하지 못했습니다. 다시 시도해주세요.';
-        _showCenterDialog(failMsg);
-      } else {
-        // 사용자가 다음 눌러야 이동
-        ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('인식 완료! 해당값을 확인 후 다음을 눌러주세요.')),
-        );
-        }
-    } catch (e) {
-      _showCenterDialog('처리 중 오류가 발생했습니다. 다시 촬영해 주세요.');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  void _autoAdvanceOnSuccess() {
-    if (!mounted) return;
-    if (_step == CaptureStep.bizno) {
-      setState(() => _step = CaptureStep.time);
-      _announceStep(CaptureStep.time);
-    } else if (_step == CaptureStep.time) {
-      setState(() => _step = CaptureStep.amount);
-      _announceStep(CaptureStep.amount);
-    } else if (_step == CaptureStep.amount) {
-      setState(() => _step = CaptureStep.review);
-      _showCenterDialog('인식이 완료되었습니다. 결과를 확인하세요.');
-    }
-  }
-
-  void _nextStep() {
-    setState(() {
-      if (_step == CaptureStep.bizno) _step = CaptureStep.time;
-      else if (_step == CaptureStep.time) _step = CaptureStep.amount;
-      else if (_step == CaptureStep.amount) _step = CaptureStep.review;
-    });
-    _announceStep();
-  }
-
-  void _resetStep(CaptureStep s) {
-    setState(() {
-      _step = s;
-      if (s == CaptureStep.bizno) _bizno = null;
-      if (s == CaptureStep.time) {
-        _timeIso = null;
-        _timeDisplay = null;
-      }
-      if (s == CaptureStep.amount) _amount = null;
-    });
-    _announceStep(s);
-  }
-
-  int _calcEarned() {
-    if (_amount == null || _amount! <= 0) return 0;
-    return max(1, (_amount! * 0.01).floor()); // 총 금액의 1% (최소 1)
-  }
-
-  // ===== UI =====
   @override
   Widget build(BuildContext context) {
-    final cam = _controller;
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.black.withOpacity(0.6),
       appBar: AppBar(
-        title: const Text('영수증 OCR'),
-        backgroundColor: const Color(0xFFF4EFFF),
-        foregroundColor: Colors.black,
-        actions: [
-          if (cam != null && cam.value.isInitialized && cam.value.flashMode != FlashMode.off)
-            IconButton(
-              tooltip: _torchOn ? '손전등 끄기' : '손전등 켜기',
-              icon: Icon(_torchOn ? Icons.flash_on : Icons.flash_off),
-              onPressed: () async {
-                if (_controller == null) return;
-                try {
-                  if (_torchOn) {
-                    await _controller!.setFlashMode(FlashMode.off);
-                    setState(() => _torchOn = false);
-                  } else {
-                    await _controller!.setFlashMode(FlashMode.torch);
-                    setState(() => _torchOn = true);
-                  }
-                } catch (_) {}
-              },
-            ),
-        ],
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      body: cam == null || !cam.value.isInitialized
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
+      body: Stack(
+        alignment: Alignment.center,
         children: [
-          // 상단 굵은 제목
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                _currentTitle(),
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-              ),
-            ),
-          ),
-
-          // 카메라 + 오버레이
-          Expanded(
-            child: Stack(
-              children: [
-                Positioned.fill(child: CameraPreview(cam)),
-
-                // 반투명 스텝 인디케이터 (카메라 위)
-                Positioned(
-                  top: 8,
-                  left: 12,
-                  right: 12,
-                  child: ScanStepIndicator(current: _step),
-                ),
-
-                // 네 모서리만 둥근 가이드 + 중앙 밴드
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: CustomPaint(
-                      painter: ReceiptGuidePainter(
-                        cornerRadius: 28,
-                        cornerArm: 24,
-                        strokeWidth: 4,
-                        edgeInset: 24,
-                        verticalInsetExtra: 32,
-                        showMiddleBand: true,
-                        bandOpacity: 0.18,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // 하단 결과/버튼
-          Container(
-            width: double.infinity,
-            color: Colors.grey.shade100,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildCurrentValueRow(),
-                if (_step == CaptureStep.review && _amount != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    '예상 적립: ${_calcEarned()} point',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF5E2AD7),
-                    ),
-                  ),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: const [
+                  ScanCorner(position: 'topLeft'),
+                  ScanCorner(position: 'topRight'),
                 ],
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _busy ? null : () => _resetStep(_step),
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('다시찍기'),
+              ),
+              const SizedBox(height: 20),
+              AspectRatio(
+                aspectRatio: _cameraController!.value.aspectRatio,
+                child: CameraPreview(_cameraController!),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: const [
+                  ScanCorner(position: 'bottomLeft'),
+                  ScanCorner(position: 'bottomRight'),
+                ],
+              ),
+            ],
+          ),
+
+          // 포인트 적립 + OCR 버튼
+          Positioned(
+            bottom: 50,
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: "15",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                            TextSpan(
+                              text: " 포인트 적립 가능",
+                              style: TextStyle(color: Colors.black),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _busy ? null : _shootAndRecognize,
-                        icon: const Icon(Icons.camera_alt),
-                        label: const Text('촬영'),
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        onTap: _captureAndRecognize,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF7A5EF2),
+                            shape: BoxShape.circle,
+                          ),
+                          padding: const EdgeInsets.all(6),
+                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _busy
-                            ? null
-                            : () {
-                          if (_step == CaptureStep.review) {
-                            final earned = _calcEarned();
-                            if (earned <= 0) {
-                              _showCenterDialog('적립할 금액을 찾지 못했습니다. 총 금액을 먼저 인식해 주세요.');
-                              return;
-                            }
-                            // ✅ 호출부(홈 등)에서 적립 포인트 수신
-                            Navigator.pop<int>(context, earned);
-                          } else {
-                            _nextStep();
-                          }
-                        },
-                        icon: Icon(_step == CaptureStep.review
-                            ? Icons.check_circle
-                            : Icons.arrow_forward),
-                        label: Text(_step == CaptureStep.review ? '적립' : '다음'),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(height: 12),
+                if (_recognizedText.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(_recognizedText, style: const TextStyle(color: Colors.black)),
+                  )
               ],
             ),
-          ),
+          )
         ],
       ),
     );
   }
+}
 
-  String _currentTitle() {
-    switch (_step) {
-      case CaptureStep.bizno:
-        return '사업자번호';
-      case CaptureStep.time:
-        return '거래일시';
-      case CaptureStep.amount:
-        return '총 금액';
-      case CaptureStep.review:
-        return '인식 결과';
+class ScanCorner extends StatelessWidget {
+  final String position;
+  const ScanCorner({super.key, required this.position});
+
+  @override
+  Widget build(BuildContext context) {
+    const double size = 40;
+    BorderRadius radius;
+
+    switch (position) {
+      case 'topLeft':
+        radius = const BorderRadius.only(topLeft: Radius.circular(16));
+        break;
+      case 'topRight':
+        radius = const BorderRadius.only(topRight: Radius.circular(16));
+        break;
+      case 'bottomLeft':
+        radius = const BorderRadius.only(bottomLeft: Radius.circular(16));
+        break;
+      case 'bottomRight':
+        radius = const BorderRadius.only(bottomRight: Radius.circular(16));
+        break;
+      default:
+        radius = BorderRadius.zero;
     }
-  }
 
-  Widget _buildCurrentValueRow() {
-    switch (_step) {
-      case CaptureStep.bizno:
-        return _kvRow('사업자번호', _bizno ?? '-');
-      case CaptureStep.time:
-        return _kvRow('거래일시', _timeDisplay ?? '-');
-      case CaptureStep.amount:
-        final disp = _amount != null
-            ? '${_amount!.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}원'
-            : '-';
-        return _kvRow('총 금액', disp);
-      case CaptureStep.review:
-        final dispAmt = _amount != null
-            ? '${_amount!.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}원'
-            : '-';
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _kvRow('사업자번호', _bizno ?? '-'),
-            const SizedBox(height: 6),
-            _kvRow('거래일시', _timeDisplay ?? '-', sub: _timeIso != null ? '(ISO: $_timeIso)' : null),
-            const SizedBox(height: 6),
-            _kvRow('총 금액', dispAmt),
-          ],
-        );
-    }
-  }
-
-  Widget _kvRow(String k, String v, {String? sub}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(width: 88, child: Text(k, style: const TextStyle(fontWeight: FontWeight.w700))),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(v, style: const TextStyle(fontSize: 16)),
-              if (sub != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(sub, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                ),
-            ],
-          ),
-        ),
-      ],
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.white, width: 3),
+        borderRadius: radius,
+      ),
     );
   }
 }
