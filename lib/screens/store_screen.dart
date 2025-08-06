@@ -16,7 +16,14 @@ class StoreScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('스토어'),
+        title: const Text(
+          '스토어',
+          style: TextStyle(
+          color: Colors.black,
+          fontWeight: FontWeight.bold, // ✅ 폰트 굵게
+          fontSize: 18,
+          ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),

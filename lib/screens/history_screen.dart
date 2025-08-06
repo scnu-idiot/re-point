@@ -13,7 +13,14 @@ class HistoryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('이용내역'),
+        title: const Text(
+            '이용내역',
+          style: TextStyle(
+          color: Colors.black,
+          fontWeight: FontWeight.bold, // ✅ 폰트 굵게
+          fontSize: 18,
+        ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
