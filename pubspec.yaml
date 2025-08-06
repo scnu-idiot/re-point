@@ -70,6 +70,11 @@ flutter:
     - assets/images/receipt_icon.png
     - assets/images/fire_icon.png
     - assets/images/banner_forest.png
+    - assets/images/money5.png
+    - assets/images/money10.png
+    - assets/images/money20.png
+    - assets/images/money30.png
+    - assets/images/money50.png
 
 
   # To add assets to your application, add an assets section, like this:
