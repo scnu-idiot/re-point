@@ -7,6 +7,7 @@ class SupportScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         title: const Text(
             '고객센터',
         style: TextStyle(
