@@ -7,7 +7,14 @@ class SupportScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('고객센터'),
+        title: const Text(
+            '고객센터',
+        style: TextStyle(
+        color: Colors.black,
+        fontWeight: FontWeight.bold, // ✅ 폰트 굵게
+        fontSize: 18,
+        ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
