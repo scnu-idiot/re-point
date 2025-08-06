@@ -1,16 +1,14 @@
-# repoint
+<p align="center">
+  <img src="assets/images/logo.png" alt="RE:POINT Logo" width="200">
+</p>
 
-A new Flutter project.
+<h2 align="center">멋쟁이사자처럼 13기</h2>
+<h3 align="center">국립순천대학교 <b>idiot</b> 팀</h3>
 
-## Getting Started
+<p align="center">
+  <strong>RE:POINT</strong><br>
+  <em>add a point to one's life</em>
+</p>
 
-This project is a starting point for a Flutter application.
+---
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
