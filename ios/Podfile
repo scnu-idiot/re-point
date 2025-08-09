@@ -1,4 +1,5 @@
-platform :ios, '18.0'
+# 권장: 더 넓은 호환성을 위해 13.0
+platform :ios, '13.0'
 
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
@@ -26,12 +27,18 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  # 정적 링크로 변경
+  # 정적 링크 권장(중복 심볼/링커 이슈 예방)
   use_frameworks! :linkage => :static
+  # (선택) 모듈러 헤더: 충돌 나는 경우에만 켜세요
+  # use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
-  # Kakao SDK 직접 추가 (혹시 누락되는 경우 대비)
+  # ✅ ML Kit Text Recognition (영문/숫자 + 한국어)
+  pod 'GoogleMLKit/TextRecognition'         # 라틴(영/숫자)
+  pod 'GoogleMLKit/TextRecognitionKorean'   # 한국어
+
+  # Kakao SDK (필요 시 유지)
   pod 'KakaoSDKCommon'
   pod 'KakaoSDKAuth'
 
@@ -43,5 +50,10 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
+    # 모든 타깃에 동일한 최소 타깃 적용(빌드 오류 예방)
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+    end
   end
 end
