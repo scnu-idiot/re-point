@@ -9,21 +9,27 @@ class NoticeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = <_NoticeItem>[
       _NoticeItem(
-        title: '리포인트 앱 출시 안내',
-        subtitle: '2025.08.25. 앱 출시 완료',
-        url: 'https://www.google.com', // 1번: 썸네일 없음
+        title: '📢 RE:챌린지 이벤트 기간 연장 안내',
+        subtitle: 'RE:챌린지에 보내주신 뜨거운 관심과 참여에 감사드립니다!',
+        url: 'https://www.notion.so/RE-2497a334f94680f49734e5ddbe918ba5?source=copy_link', // 1번: 썸네일 없음
         thumbnail: null,
       ),
       _NoticeItem(
-        title: '리포인트 이벤트 안내',
-        subtitle: '자세한 내용은 이벤트 페이지 참고',
-        url: 'https://www.naver.com',
+        title: '📢 8월 3주차 핫플레이스 장소 안내',
+        subtitle: '📍 8월 3주차 핫플레이스 – 순천시 옥리단길',
+        url: 'https://www.notion.so/8-3-2497a334f94680a18988fecb91cb9ed7?source=copy_link',
         thumbnail: null,
       ),
       _NoticeItem(
-        title: '리포인트 스토어 안내',
-        subtitle: '2025.09.01.부터 정상 작동',
-        url: 'https://www.daum.net',
+        title: '📢 8월 2주차 핫플레이스 장소 안내',
+        subtitle: '📍 8월 2주차 핫플레이스 – 순천시 금당',
+        url: 'https://www.notion.so/8-2-2497a334f94680f491f7ec204d7d144d?source=copy_link',
+        thumbnail: null,
+      ),
+      _NoticeItem(
+        title: '📢 8월 1주차 핫플레이스 장소 안내',
+        subtitle: '📍 8월 1주차 핫플레이스 – 순천시 서면',
+        url: 'https://www.notion.so/8-1-2497a334f946802db5e8c2f7c2298e9b?source=copy_link',
         thumbnail: null,
       ),
     ];
