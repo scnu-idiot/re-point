@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'screens/splash_screen.dart'; // 스플래시 화면
 
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Kakao SDK 초기화 - 반드시 runApp 전에!
-  KakaoSdk.init(nativeAppKey: 'dd00c30573b12a8a81cd65b526943c99');
+  KakaoSdk.init(nativeAppKey: 'dd00c30573b12a8a81cd65b526943c99'); // 초기화 직접 추가
 
   runApp(const MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
