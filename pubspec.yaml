@@ -75,6 +75,7 @@ flutter:
     - assets/images/money20.png
     - assets/images/money30.png
     - assets/images/money50.png
+    - assets/images/invite.png
 
 
   # To add assets to your application, add an assets section, like this:
