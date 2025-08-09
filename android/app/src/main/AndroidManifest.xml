@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.repoint">
 
+    <!-- 권한/피처 -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
@@ -19,31 +20,47 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
+            <!-- Flutter 기본 테마 메타데이터 -->
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
 
+            <!-- Kakao SDK 네이티브 앱 키 -->
             <meta-data
                 android:name="com.kakao.sdk.AppKey"
                 android:value="dd00c30573b12a8a81cd65b526943c99" />
 
+            <!-- 런처 인텐트 -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Kakao 로그인 Redirect (앱 복귀용 스킴) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="kakaodd00c30573b12a8a81cd65b526943c99"
+                    android:host="oauth" />
+            </intent-filter>
+
         </activity>
 
+        <!-- Flutter 임베딩 버전 표기 -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
 
+    <!-- Android 11+ 패키지 가시성: 카카오톡 앱 탐지용 (선택 권장) -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
         </intent>
+        <package android:name="com.kakao.talk" />
     </queries>
 
 </manifest>
