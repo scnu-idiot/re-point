@@ -8,7 +8,7 @@ import 'receipt_scan_screen.dart';
 import 'store_screen.dart';
 import 'history_screen.dart';
 import 'support_screen.dart';
-import 'chatbot_screen.dart'; // 챗봇 화면 import 추가
+import 'chatbot_screen.dart';
 import '../widgets/event_card.dart';
 import '../widgets/side_menu.dart';
 

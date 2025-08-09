@@ -1,35 +1,36 @@
+// notice_screen.dart
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-class EventCardScreen extends StatelessWidget {
-  const EventCardScreen({super.key});
+class NoticeScreen extends StatelessWidget {
+  const NoticeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final items = <_EventItem>[
-      _EventItem(
-        title: '🌟 친구야, RE:POINT 하자!',
-        subtitle: '8월 친구 초대 이벤트',
-        url: 'https://www.notion.so/RE-POINT-2497a334f94680daae22fa24c88fe20d?source=copy_link',
+    final items = <_NoticeItem>[
+      _NoticeItem(
+        title: '📢 RE:챌린지 이벤트 기간 연장 안내',
+        subtitle: 'RE:챌린지에 보내주신 뜨거운 관심과 참여에 감사드립니다!',
+        url: 'https://www.notion.so/RE-2497a334f94680f49734e5ddbe918ba5?source=copy_link', // 1번: 썸네일 없음
         thumbnail: null,
       ),
-      _EventItem(
-        title: '🌟 RE:챌린지',
-        subtitle: '연속 방문 미션',
-        url: 'https://www.notion.so/RE-2497a334f94680329144e3d08b777937?source=copy_link',
+      _NoticeItem(
+        title: '📢 8월 3주차 핫플레이스 장소 안내',
+        subtitle: '📍 8월 3주차 핫플레이스 – 순천시 옥리단길',
+        url: 'https://www.notion.so/8-3-2497a334f94680a18988fecb91cb9ed7?source=copy_link',
         thumbnail: null,
       ),
-      _EventItem(
-        title: '🌟 핫플레이스 리워드',
-        subtitle: '지금이 기회!',
-        url: 'https://www.notion.so/2497a334f94680d28c57c4276d83a814?source=copy_link',
+      _NoticeItem(
+        title: '📢 8월 2주차 핫플레이스 장소 안내',
+        subtitle: '📍 8월 2주차 핫플레이스 – 순천시 금당',
+        url: 'https://www.notion.so/8-2-2497a334f94680f491f7ec204d7d144d?source=copy_link',
         thumbnail: null,
       ),
-      _EventItem(
-        title: '🌟 영수증도 운이 따라야지!',
-        subtitle: '랜덤 추첨 이벤트',
-        url: 'https://www.notion.so/2497a334f94680a3a63ccf56336cf129?source=copy_link',
-        thumbnail: null,
+    _NoticeItem(
+      title: '📢 8월 1주차 핫플레이스 장소 안내',
+      subtitle: '📍 8월 1주차 핫플레이스 – 순천시 서면',
+      url: 'https://www.notion.so/8-1-2497a334f946802db5e8c2f7c2298e9b?source=copy_link',
+      thumbnail: null,
       ),
     ];
 
@@ -64,10 +65,7 @@ class EventCardScreen extends StatelessWidget {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => EventWebViewPage(
-                  title: it.title,
-                  initialUrl: it.url,
-                ),
+                builder: (_) => NoticeWebViewPage(title: it.title, initialUrl: it.url),
               ),
             ),
             child: Container(
@@ -86,10 +84,12 @@ class EventCardScreen extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 썸네일 (첫 번째 아이템은 null이므로 표시 안 함)
                   if (it.thumbnail != null) ...[
                     it.thumbnail!,
                     const SizedBox(width: 12),
                   ],
+                  // 텍스트
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,21 +128,21 @@ class EventCardScreen extends StatelessWidget {
   }
 }
 
-class EventWebViewPage extends StatefulWidget {
+class NoticeWebViewPage extends StatefulWidget {
   final String title;
   final String initialUrl;
 
-  const EventWebViewPage({
+  const NoticeWebViewPage({
     super.key,
     required this.title,
     required this.initialUrl,
   });
 
   @override
-  State<EventWebViewPage> createState() => _EventWebViewPageState();
+  State<NoticeWebViewPage> createState() => _NoticeWebViewPageState();
 }
 
-class _EventWebViewPageState extends State<EventWebViewPage> {
+class _NoticeWebViewPageState extends State<NoticeWebViewPage> {
   late final WebViewController _controller;
   double _progress = 0;
 
@@ -197,13 +197,13 @@ class _EventWebViewPageState extends State<EventWebViewPage> {
   }
 }
 
-class _EventItem {
+class _NoticeItem {
   final String title;
   final String subtitle;
   final String url;
   final Widget? thumbnail;
 
-  _EventItem({
+  _NoticeItem({
     required this.title,
     required this.subtitle,
     required this.url,
