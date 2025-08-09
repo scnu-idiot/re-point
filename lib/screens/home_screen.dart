@@ -3,8 +3,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 
 // 🔽 화면 import
-import '../services/kakao_login_service.dart';
-import 'login_screen.dart';
 import 'notification_screen.dart';
 import 'receipt_scan_screen.dart';
 import 'store_screen.dart';
@@ -41,17 +39,6 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     } catch (e) {
       print('유저 정보 불러오기 실패: $e');
-    }
-  }
-
-  Future<void> _logout() async {
-    await KakaoLoginService.logout();
-    if (context.mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-            (route) => false,
-      );
     }
   }
 
@@ -124,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '$nickname 님',
+                          '${nickname ?? "사용자"} 님',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -205,8 +192,8 @@ class _HomeScreenState extends State<HomeScreen> {
               borderRadius: BorderRadius.circular(12),
               child: Image.asset('assets/images/banner_forest.png', fit: BoxFit.cover),
             ),
-//d
             const SizedBox(height: 16),
+
             Row(
               children: [
                 Expanded(
@@ -245,11 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: 20),
-
-            ElevatedButton(
-              onPressed: _logout,
-              child: const Text('로그아웃'),
-            ),
+            // ⛔️ 로그아웃 버튼 제거됨
           ],
         ),
       ),

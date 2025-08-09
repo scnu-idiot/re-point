@@ -7,6 +7,8 @@ import '../screens/support_screen.dart';
 import '../screens/mypage.dart';
 import '../screens/invite.dart';
 import '../widgets/event_card.dart';
+import '../screens/login_screen.dart';
+import '../services/kakao_login_service.dart';
 
 class SideMenu extends StatefulWidget {
   const SideMenu({super.key});
@@ -35,12 +37,24 @@ class _SideMenuState extends State<SideMenu> {
     }
   }
 
+  Future<void> _logout() async {
+    await KakaoLoginService.logout();
+    if (context.mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+            (route) => false,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Drawer(
       child: SafeArea(
         child: Column(
           children: [
+            // 상단 알림 + 닫기 버튼
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
@@ -63,6 +77,8 @@ class _SideMenuState extends State<SideMenu> {
               ),
             ),
             const Divider(),
+
+            // 메뉴 리스트
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -123,6 +139,22 @@ class _SideMenuState extends State<SideMenu> {
                     },
                   ),
                 ],
+              ),
+            ),
+
+            // 하단 로그아웃
+            Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: GestureDetector(
+                onTap: _logout,
+                child: const Text(
+                  "로그아웃",
+                  style: TextStyle(
+                    decoration: TextDecoration.underline,
+                    color: Colors.black,
+                    fontSize: 16,
+                  ),
+                ),
               ),
             ),
           ],
