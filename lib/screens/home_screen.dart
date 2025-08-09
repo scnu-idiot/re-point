@@ -8,6 +8,7 @@ import 'receipt_scan_screen.dart';
 import 'store_screen.dart';
 import 'history_screen.dart';
 import 'support_screen.dart';
+import 'chatbot_screen.dart'; // 챗봇 화면 import 추가
 import '../widgets/event_card.dart';
 import '../widgets/side_menu.dart';
 
@@ -232,10 +233,34 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: 20),
-            // ⛔️ 로그아웃 버튼 제거됨
+            // 로그아웃 버튼 제거됨
           ],
         ),
       ),
+        floatingActionButton: SizedBox(
+          width: 70, // 버튼 크기
+          height: 70,
+          child: FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+              );
+            },
+            backgroundColor: Colors.transparent, // 배경 투명
+            elevation: 0, // 그림자 제거
+            shape: const CircleBorder(),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/AI.png',
+                fit: BoxFit.cover,
+                width: 70,
+                height: 70,
+              ),
+            ),
+          ),
+        )
+
     );
   }
 }
