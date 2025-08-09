@@ -46,6 +46,14 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 
+	<!-- ✅ 카메라 권한 (OCR/촬영) -->
+	<key>NSCameraUsageDescription</key>
+	<string>영수증 촬영을 위해 카메라 접근이 필요합니다.</string>
+
+	<!-- (선택) 촬영 이미지 저장 시 -->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>촬영한 영수증을 저장하기 위해 사진 보관함 접근이 필요합니다.</string>
+
 	<!-- ✅ 카카오톡 로그인용 스킴 조회(권장) -->
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
