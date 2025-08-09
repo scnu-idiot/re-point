@@ -6,6 +6,7 @@ import '../screens/store_screen.dart';
 import '../screens/support_screen.dart';
 import '../screens/mypage.dart';
 import '../screens/invite.dart';
+import '../screens/notice_screen.dart'; // ✅ 공지사항 화면 import
 import '../widgets/event_card.dart';
 import '../screens/login_screen.dart';
 import '../services/kakao_login_service.dart';
@@ -117,7 +118,16 @@ class _SideMenuState extends State<SideMenu> {
                       );
                     },
                   ),
-                  const ListTile(title: Text("공지사항")),
+                  ListTile(
+                    title: const Text("공지사항"),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const NoticeScreen()),
+                      );
+                    },
+                  ),
                   ListTile(
                     title: const Text("이벤트"),
                     onTap: () {
