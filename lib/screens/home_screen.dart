@@ -9,11 +9,9 @@ import 'store_screen.dart';
 import 'history_screen.dart';
 import 'support_screen.dart';
 import 'chatbot_screen.dart';
+import 'mypage.dart';
 import '../widgets/event_card.dart';
 import '../widgets/side_menu.dart';
-// import 'package:http/http.dart' as http; // 🔗 Spring Boot REST 사용 시
-// import 'dart:convert';                    // 🔗 JSON 파싱
-// import 'package:cloud_firestore/cloud_firestore.dart'; // 🔗 Firebase 사용 시
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,13 +26,12 @@ class _HomeScreenState extends State<HomeScreen> {
   String? profileImageUrl;
 
   // ✅ 포인트(나중에 DB 연동 예정)
-  int userPoints = 5000; // <-- 화면 확인용 더미 값
+  int userPoints = 5000; // 화면 확인용 더미 값
 
   @override
   void initState() {
     super.initState();
     loadUser();
-    // _loadUserPoints(); // 🔗 DB 연결되면 주석 해제
   }
 
   Future<void> loadUser() async {
@@ -49,47 +46,6 @@ class _HomeScreenState extends State<HomeScreen> {
       debugPrint('유저 정보 불러오기 실패: $e');
     }
   }
-
-  /// 🔗 (옵션) Spring Boot에서 포인트 조회 예시
-  /*
-  Future<void> _loadUserPoints() async {
-    try {
-      final res = await http.get(
-        Uri.parse('https://api.example.com/me/points'),
-        headers: {'Authorization': 'Bearer YOUR_TOKEN'},
-      );
-      if (res.statusCode == 200) {
-        final j = json.decode(res.body) as Map<String, dynamic>;
-        setState(() {
-          userPoints = (j['points'] ?? 0) as int;
-        });
-      } else {
-        debugPrint('포인트 조회 실패: ${res.statusCode}');
-      }
-    } catch (e) {
-      debugPrint('포인트 조회 에러: $e');
-    }
-  }
-  */
-
-  /// 🔗 (옵션) Firebase Firestore에서 포인트 조회 예시
-  /*
-  Future<void> _loadUserPoints() async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc('CURRENT_USER_ID')
-          .get();
-      if (doc.exists) {
-        setState(() {
-          userPoints = (doc.data()?['points'] ?? 0) as int;
-        });
-      }
-    } catch (e) {
-      debugPrint('포인트 조회 에러(Firebase): $e');
-    }
-  }
-  */
 
   String _formatPoints(int v) {
     // 간단한 천 단위 콤마 포맷터
@@ -117,7 +73,8 @@ class _HomeScreenState extends State<HomeScreen> {
           'assets/images/logo.svg',
           width: 160,
           height: 50,
-          colorFilter: const ColorFilter.mode(Color(0xFF5E2AD7), BlendMode.srcIn),
+          colorFilter:
+          const ColorFilter.mode(Color(0xFF5E2AD7), BlendMode.srcIn),
         ),
         actions: [
           IconButton(
@@ -163,68 +120,82 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 16),
 
-            // ✅ 사용자 카드 (디자인: 첫 번째 이미지처럼)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF4F2FB),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  // 상단: 닉네임 / 아바타
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${nickname ?? "사용자"} 님',
+
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                    MaterialPageRoute(
+                      builder: (_) => MyPageScreen(nickname: nickname ?? '사용자'),
+                    ),
+                );
+              },
+              child: Container(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4F2FB),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 상단: 닉네임 / 아바타
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${nickname ?? "사용자"} 님',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        profileImageUrl != null
+                            ? CircleAvatar(
+                          radius: 18,
+                          backgroundImage:
+                          NetworkImage(profileImageUrl!),
+                        )
+                            : const CircleAvatar(
+                          radius: 18,
+                          backgroundColor: Color(0xFF9EC3D6),
+                          child: Icon(Icons.person,
+                              size: 20, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // 하단: 포인트 내역 / 현재 포인트
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            '포인트 내역',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${_formatPoints(userPoints)} point',
                           style: const TextStyle(
-                            fontSize: 18,
+                            fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: Colors.black87,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      profileImageUrl != null
-                          ? CircleAvatar(
-                        radius: 18,
-                        backgroundImage: NetworkImage(profileImageUrl!),
-                      )
-                          : const CircleAvatar(
-                        radius: 18,
-                        backgroundColor: Color(0xFF9EC3D6),
-                        child: Icon(Icons.person, size: 20, color: Colors.white),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // 하단: 포인트 내역 / 현재 포인트
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          '포인트 내역',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.black54,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '${_formatPoints(userPoints)} point',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -235,21 +206,37 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ReceiptScanScreen()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const ReceiptScanScreen()),
+                      );
                     },
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.asset('assets/images/receipt_icon.png', fit: BoxFit.cover, height: 200),
+                      child: Image.asset(
+                        'assets/images/receipt_icon.png',
+                        fit: BoxFit.cover,
+                        height: 200,
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: GestureDetector(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EventCardScreen())),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const EventCardScreen()),
+                    ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.asset('assets/images/fire_icon.png', fit: BoxFit.cover, height: 200),
+                      child: Image.asset(
+                        'assets/images/fire_icon.png',
+                        fit: BoxFit.cover,
+                        height: 200,
+                      ),
                     ),
                   ),
                 ),
@@ -262,12 +249,20 @@ class _HomeScreenState extends State<HomeScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF5E2AD7),
                 minimumSize: const Size.fromHeight(60),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StoreScreen())),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const StoreScreen()),
+              ),
               child: const Text(
                 "스토어",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -275,7 +270,10 @@ class _HomeScreenState extends State<HomeScreen> {
             // 배너
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.asset('assets/images/banner_forest.png', fit: BoxFit.cover),
+              child: Image.asset(
+                'assets/images/banner_forest.png',
+                fit: BoxFit.cover,
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -284,12 +282,19 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Expanded(
                   child: GestureDetector(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen())),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const HistoryScreen()),
+                    ),
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                      child: Column(
-                        children: const [
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Column(
+                        children: [
                           Icon(Icons.receipt_long),
                           SizedBox(height: 6),
                           Text("이용내역"),
@@ -301,12 +306,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: GestureDetector(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen())),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const SupportScreen()),
+                    ),
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                      child: Column(
-                        children: const [
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Column(
+                        children: [
                           Icon(Icons.headset_mic),
                           SizedBox(height: 6),
                           Text("고객센터"),
@@ -321,6 +333,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
+
       // 챗봇 플로팅 버튼
       floatingActionButton: SizedBox(
         width: 70,
