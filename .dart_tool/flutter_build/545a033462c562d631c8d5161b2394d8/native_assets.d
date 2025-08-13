@@ -1,0 +1,1 @@
+ C:\\repoint\\.dart_tool\\flutter_build\\545a033462c562d631c8d5161b2394d8\\native_assets.yaml: 
