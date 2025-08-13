@@ -41,7 +41,7 @@ class EventCardScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: false,
         title: const Text(
-          '공지사항',
+          '이벤트',
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.w700,
