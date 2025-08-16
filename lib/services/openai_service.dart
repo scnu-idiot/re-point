@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../config.dart';
+import 'package:repoint/config.dart';
 import '../screens/chatbot_screen.dart'; // _ChatMessage를 위해 임시 import
 
 class OpenAIService {
