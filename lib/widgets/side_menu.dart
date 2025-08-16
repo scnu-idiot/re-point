@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 
 import '../screens/notification_screen.dart';
@@ -6,10 +7,12 @@ import '../screens/store_screen.dart';
 import '../screens/support_screen.dart';
 import '../screens/mypage.dart';
 import '../screens/invite.dart';
-import '../screens/notice_screen.dart'; // ✅ 공지사항 화면 import
+import '../screens/notice_screen.dart';
 import '../widgets/event_card.dart';
 import '../screens/login_screen.dart';
-import '../services/kakao_login_service.dart';
+
+// ✅ 통합 로그아웃 헬퍼
+import '../services/auth_helper.dart';
 
 class SideMenu extends StatefulWidget {
   const SideMenu({super.key});
@@ -24,22 +27,36 @@ class _SideMenuState extends State<SideMenu> {
   @override
   void initState() {
     super.initState();
-    _loadKakaoUser();
+    _loadNickname();
   }
 
-  Future<void> _loadKakaoUser() async {
+  /// 카카오/구글 모두 대응한 닉네임 로딩
+  Future<void> _loadNickname() async {
     try {
-      final user = await UserApi.instance.me();
-      setState(() {
-        _nickname = user.kakaoAccount?.profile?.nickname ?? '사용자';
-      });
+      final prefs = await SharedPreferences.getInstance();
+      final provider = prefs.getString('loginProvider');
+
+      if (provider == 'kakao') {
+        // 카카오 프로필에서 닉네임
+        final user = await UserApi.instance.me();
+        setState(() {
+          _nickname = user.kakaoAccount?.profile?.nickname ?? '사용자';
+        });
+      } else {
+        // 구글 또는 기타: SharedPreferences 저장값 사용
+        final savedName = prefs.getString('userName');
+        setState(() {
+          _nickname = (savedName != null && savedName.isNotEmpty) ? savedName : '사용자';
+        });
+      }
     } catch (e) {
-      print('카카오 사용자 정보 불러오기 실패: $e');
+      // 실패 시 기본값 유지
+      debugPrint('닉네임 로딩 실패: $e');
     }
   }
 
   Future<void> _logout() async {
-    await KakaoLoginService.logout();
+    await unifiedLogout(); // ✅ provider에 맞춰 자동 로그아웃
     if (context.mounted) {
       Navigator.pushAndRemoveUntil(
         context,
@@ -152,7 +169,7 @@ class _SideMenuState extends State<SideMenu> {
               ),
             ),
 
-            // 하단 로그아웃
+            // 하단 로그아웃 (가운데 정렬 + 밑줄)
             Padding(
               padding: const EdgeInsets.only(bottom: 20),
               child: GestureDetector(
