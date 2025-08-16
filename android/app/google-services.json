@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "132968321662",
+    "project_id": "repoint-idiot",
+    "storage_bucket": "repoint-idiot.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:132968321662:android:11a02107897492df47fe2f",
+        "android_client_info": {
+          "package_name": "com.example.repoint"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "132968321662-89s1pm7v2hk8n1ii6kdcac1dnb8b1a1f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.repoint",
+            "certificate_hash": "69cd6ad8f54008fa6da585f242c4c62fcaabfaca"
+          }
+        },
+        {
+          "client_id": "132968321662-cctko1fn0eeulbgc0tub7a36l41ljbfv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.repoint",
+            "certificate_hash": "fe6ace5463aded268ec4742b641850db63377b3a"
+          }
+        },
+        {
+          "client_id": "132968321662-n21svisgpp4b9n23pufgiepk2itr3ubj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA6BegEpzM_1IdRps3tTFvkBCghJEwWGxQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "132968321662-n21svisgpp4b9n23pufgiepk2itr3ubj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
