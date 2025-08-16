@@ -11,7 +11,7 @@
     <application
         android:label="repoint"
         android:icon="@mipmap/ic_launcher">
-
+        android:enableOnBackInvokedCallback="true"
         <!-- (선택) Kakao SDK AppKey : 코드에서 KakaoSdk.init() 쓰면 생략 가능 -->
         <meta-data
             android:name="com.kakao.sdk.AppKey"
