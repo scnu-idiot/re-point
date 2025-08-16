@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 
+// screens
 import 'history_screen.dart';
 import 'notice_screen.dart';
 import 'support_screen.dart';
 import 'invite.dart';
 import '../widgets/event_card.dart';
 import 'withdrawal_screen.dart';
-
-// import 'package:http/http.dart' as http; // 🔗 Spring Boot 연동 시
-// import 'dart:convert';
-// import 'package:cloud_firestore/cloud_firestore.dart'; // 🔗 Firebase 연동 시
+import 'terms_of_service_screen.dart';
+import 'privacy_policy_screen.dart';
+import 'location_terms_screen.dart';
+import 'app_version_screen.dart';
 
 class MyPageScreen extends StatefulWidget {
   final String nickname;
@@ -21,7 +22,7 @@ class MyPageScreen extends StatefulWidget {
 }
 
 class _MyPageScreenState extends State<MyPageScreen> {
-  // ===== 화면 데이터 (연동 전 더미) =====
+  // ==== 기본 데이터 (연동 전 더미) ====
   String email = 'walkholic@likelion.org';
   int points = 5000;
   int month = DateTime.now().month;
@@ -39,15 +40,12 @@ class _MyPageScreenState extends State<MyPageScreen> {
   void initState() {
     super.initState();
     _loadKakaoProfile();
-    // _loadProfileFromServer();   // 🔗 Spring Boot
-    // _loadProfileFromFirebase(); // 🔗 Firebase
-    // _loadReportFromServer();
-    // _loadReportFromFirebase();
   }
 
   Future<void> _loadKakaoProfile() async {
     try {
       final user = await UserApi.instance.me();
+      if (!mounted) return;
       setState(() {
         profileImageUrl = user.kakaoAccount?.profile?.profileImageUrl;
         email = user.kakaoAccount?.email ?? email;
@@ -57,82 +55,13 @@ class _MyPageScreenState extends State<MyPageScreen> {
     }
   }
 
-  /* ==========================
-   *  Spring Boot 예시 (주석)
-   * ==========================
-  Future<void> _loadProfileFromServer() async {
-    try {
-      final res = await http.get(
-        Uri.parse('https://api.example.com/me'),
-        headers: {'Authorization': 'Bearer YOUR_TOKEN'},
-      );
-      if (res.statusCode == 200) {
-        final j = json.decode(res.body) as Map<String, dynamic>;
-        setState(() {
-          email = j['email'] ?? email;
-          points = (j['points'] ?? 0) as int;
-        });
-      }
-    } catch (e) { debugPrint('profile load error: $e'); }
-  }
-
-  Future<void> _loadReportFromServer() async {
-    try {
-      final res = await http.get(
-        Uri.parse('https://api.example.com/me/consumption?month=$month'),
-        headers: {'Authorization': 'Bearer YOUR_TOKEN'},
-      );
-      if (res.statusCode == 200) {
-        final j = json.decode(res.body) as Map<String, dynamic>;
-        setState(() {
-          total = (j['total'] ?? 0) as int;
-          categories
-            ..clear()
-            ..addAll((j['categories'] as Map).map(
-              (k, v) => MapEntry(k.toString(), int.parse(v.toString())),
-            ));
-        });
-      }
-    } catch (e) { debugPrint('report load error: $e'); }
-  }
-  */
-
-  /* ==========================
-   *  Firebase 예시 (주석)
-   * ==========================
-  Future<void> _loadProfileFromFirebase() async {
-    final doc = await FirebaseFirestore.instance
-      .collection('users').doc('CURRENT_USER_ID').get();
-    if (doc.exists) {
-      setState(() {
-        email  = doc.data()?['email']  ?? email;
-        points = doc.data()?['points'] ?? points;
-      });
-    }
-  }
-
-  Future<void> _loadReportFromFirebase() async {
-    final snap = await FirebaseFirestore.instance
-      .collection('users').doc('CURRENT_USER_ID')
-      .collection('reports').doc('$month').get();
-    if (snap.exists) {
-      final data = snap.data()!;
-      setState(() {
-        total = data['total'] ?? total;
-        categories
-          ..clear()
-          ..addAll(Map<String, int>.from(data['categories'] ?? {}));
-      });
-    }
-  }
-  */
-
   String _fmt(int v) {
     final s = v.toString();
     final b = StringBuffer();
     var c = 0;
     for (var i = s.length - 1; i >= 0; i--) {
-      b.write(s[i]); c++;
+      b.write(s[i]);
+      c++;
       if (c % 3 == 0 && i != 0) b.write(',');
     }
     return b.toString().split('').reversed.join();
@@ -192,8 +121,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
   }
 
-  // ===== 구성 위젯 =====
-
+  // ==== 프로필 카드 ====
   Widget _profileCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
@@ -260,8 +188,10 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 Expanded(
                   child: InkWell(
                     onTap: () {
-                      Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const HistoryScreen()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                      );
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
@@ -279,6 +209,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
   }
 
+  // ==== 소비 리포트 카드 ====
   Widget _reportCard() {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
@@ -296,7 +227,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 icon: const Icon(Icons.chevron_left),
                 onPressed: () => setState(() {
                   month = (month - 1) < 1 ? 12 : (month - 1);
-                  // _loadReportFromServer(); // 또는 Firebase
                 }),
               ),
               Text('$month월', style: const TextStyle(fontWeight: FontWeight.w800)),
@@ -304,7 +234,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 icon: const Icon(Icons.chevron_right),
                 onPressed: () => setState(() {
                   month = (month + 1) > 12 ? 1 : (month + 1);
-                  // _loadReportFromServer(); // 또는 Firebase
                 }),
               ),
               const Spacer(),
@@ -334,8 +263,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   Widget _categoryRow(Color color, String label, int value) {
     return Row(
       children: [
-        Container(width: 12, height: 12,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 8),
         Expanded(child: Text(label)),
         Text('${_fmt(value)}원', style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -343,6 +271,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
   }
 
+  // ==== 빠른 메뉴 카드 ====
   Widget _quickMenuCard(BuildContext context, Color keyColor) {
     Widget item(IconData icon, String label, VoidCallback onTap) {
       return InkWell(
@@ -371,25 +300,45 @@ class _MyPageScreenState extends State<MyPageScreen> {
         children: [
           Row(
             children: [
-              Expanded(child: item(Icons.campaign_outlined, '공지사항', () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const NoticeScreen()));
-              })),
+              Expanded(
+                child: item(Icons.campaign_outlined, '공지사항', () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NoticeScreen()),
+                  );
+                }),
+              ),
               Container(width: 1, height: 60, color: Colors.black12),
-              Expanded(child: item(Icons.person_add_alt_1_outlined, '친구초대', () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => InviteScreen(nickname: widget.nickname)));
-              })),
+              Expanded(
+                child: item(Icons.person_add_alt_1_outlined, '친구초대', () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => InviteScreen(nickname: widget.nickname)),
+                  );
+                }),
+              ),
             ],
           ),
           Container(height: 1, color: Colors.black12),
           Row(
             children: [
-              Expanded(child: item(Icons.headset_mic_outlined, '고객센터', () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()));
-              })),
+              Expanded(
+                child: item(Icons.headset_mic_outlined, '고객센터', () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SupportScreen()),
+                  );
+                }),
+              ),
               Container(width: 1, height: 60, color: Colors.black12),
-              Expanded(child: item(Icons.celebration_outlined, '이벤트', () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const EventCardScreen()));
-              })),
+              Expanded(
+                child: item(Icons.celebration_outlined, '이벤트', () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const EventCardScreen()),
+                  );
+                }),
+              ),
             ],
           ),
         ],
@@ -397,23 +346,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
   }
 
+  // ==== 정책 카드 ====
   Widget _policyCard() {
-    Widget dot() => Container(
-      width: 6, height: 6,
-      decoration: const BoxDecoration(color: Color(0xFF5E2AD7), shape: BoxShape.circle),
-    );
-
-    Widget row(String text) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-      child: Row(
-        children: [
-          dot(),
-          const SizedBox(width: 10),
-          Expanded(child: Text(text)),
-        ],
-      ),
-    );
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -422,13 +356,49 @@ class _MyPageScreenState extends State<MyPageScreen> {
       ),
       child: Column(
         children: [
-          row('서비스 이용약관'),
+          ListTile(
+            title: const Text('서비스 이용약관'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const TermsOfServiceScreen()),
+              );
+            },
+          ),
           const Divider(height: 1),
-          row('개인정보 처리방침'),
+          ListTile(
+            title: const Text('개인정보 처리방침'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+              );
+            },
+          ),
           const Divider(height: 1),
-          row('위치기반 서비스 이용 약관'),
+          ListTile(
+            title: const Text('위치기반 서비스 이용약관'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LocationTermsScreen()),
+              );
+            },
+          ),
           const Divider(height: 1),
-          row('앱 버전'),
+          ListTile(
+            title: const Text('앱 버전'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AppVersionScreen()),
+              );
+            },
+          ),
         ],
       ),
     );
