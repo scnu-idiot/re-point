@@ -4,12 +4,8 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8323f094-8834-4618-8c1d-a604b9211120" name="Changes" comment="google-services.json">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/app_version_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/app_version_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/location_terms_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/location_terms_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/privacy_policy_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/privacy_policy_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/terms_of_service_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/terms_of_service_screen.dart" afterDir="false" />
+    <list default="true" id="8323f094-8834-4618-8c1d-a604b9211120" name="Changes" comment="mypage edit">
+      <change beforePath="$PROJECT_DIR$/lib/screens/mypage.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/mypage.dart" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -157,7 +153,14 @@
       <option name="project" value="LOCAL" />
       <updated>1755599802598</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="mypage edit">
+      <created>1755599913613</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1755599913613</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -194,6 +197,7 @@
     <MESSAGE value="google login 추가" />
     <MESSAGE value="약관 및 방침 추가" />
     <MESSAGE value="google-services.json" />
-    <option name="LAST_COMMIT_MESSAGE" value="google-services.json" />
+    <MESSAGE value="mypage edit" />
+    <option name="LAST_COMMIT_MESSAGE" value="mypage edit" />
   </component>
 </project>
