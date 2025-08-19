@@ -22,16 +22,29 @@ class MyPageScreen extends StatefulWidget {
 }
 
 class _MyPageScreenState extends State<MyPageScreen> {
-  // ==== 기본 데이터 (연동 전 더미) ====
+  // ==== 연도/월 소비 데이터 ====
+  final Map<int, Map<int, Map<String, int>>> yearlyData = {
+    2025: {
+      1: {'식비': 490000, '쇼핑': 190000, '그 외': 142000},
+      2: {'식비': 310000, '쇼핑': 120000, '그 외': 231000},
+      3: {'식비': 320000, '쇼핑': 110000, '그 외': 311000},
+      4: {'식비': 330000, '쇼핑': 200000, '그 외': 231000},
+      5: {'식비': 360000, '쇼핑': 210000, '그 외': 231000},
+      6: {'식비': 390000, '쇼핑': 220000, '그 외': 341000},
+      7: {'식비': 420000, '쇼핑': 180000, '그 외': 95000},
+      8: {'식비': 380000, '쇼핑': 257400, '그 외': 116400},
+    },
+    2024: {
+      12: {'식비': 310000, '쇼핑': 150000, '그 외': 87000},
+    },
+  };
+
+  int currentYear = DateTime.now().year;
+  int currentMonth = DateTime.now().month;
+
+  // ==== 기본 데이터 ====
   String email = 'walkholic@likelion.org';
   int points = 5000;
-  int month = DateTime.now().month;
-  int total = 753800;
-  final Map<String, int> categories = {
-    '식비': 380000,
-    '쇼핑': 257400,
-    '그 외': 116400,
-  };
 
   // 카카오 프로필
   String? profileImageUrl;
@@ -55,6 +68,15 @@ class _MyPageScreenState extends State<MyPageScreen> {
     }
   }
 
+  // ==== 헬퍼 ====
+  Map<String, int> _getCategoriesForMonth(int year, int month) {
+    return yearlyData[year]?[month] ?? {'식비': 0, '쇼핑': 0, '그 외': 0};
+  }
+
+  int _calcTotal(Map<String, int> cats) {
+    return cats.values.fold(0, (a, b) => a + b);
+  }
+
   String _fmt(int v) {
     final s = v.toString();
     final b = StringBuffer();
@@ -65,6 +87,28 @@ class _MyPageScreenState extends State<MyPageScreen> {
       if (c % 3 == 0 && i != 0) b.write(',');
     }
     return b.toString().split('').reversed.join();
+  }
+
+  void _prevMonth() {
+    setState(() {
+      if (currentMonth == 1) {
+        currentMonth = 12;
+        currentYear--;
+      } else {
+        currentMonth--;
+      }
+    });
+  }
+
+  void _nextMonth() {
+    setState(() {
+      if (currentMonth == 12) {
+        currentMonth = 1;
+        currentYear++;
+      } else {
+        currentMonth++;
+      }
+    });
   }
 
   @override
@@ -211,6 +255,9 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
   // ==== 소비 리포트 카드 ====
   Widget _reportCard() {
+    final categories = _getCategoriesForMonth(currentYear, currentMonth);
+    final total = _calcTotal(categories);
+
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
@@ -223,19 +270,10 @@ class _MyPageScreenState extends State<MyPageScreen> {
         children: [
           Row(
             children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left),
-                onPressed: () => setState(() {
-                  month = (month - 1) < 1 ? 12 : (month - 1);
-                }),
-              ),
-              Text('$month월', style: const TextStyle(fontWeight: FontWeight.w800)),
-              IconButton(
-                icon: const Icon(Icons.chevron_right),
-                onPressed: () => setState(() {
-                  month = (month + 1) > 12 ? 1 : (month + 1);
-                }),
-              ),
+              IconButton(icon: const Icon(Icons.chevron_left), onPressed: _prevMonth),
+              Text('$currentYear년 $currentMonth월',
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+              IconButton(icon: const Icon(Icons.chevron_right), onPressed: _nextMonth),
               const Spacer(),
             ],
           ),
