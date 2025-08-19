@@ -133,8 +133,6 @@ class TermsOfServiceScreen extends StatelessWidget {
 
 
 
-
-
 제3장 계약 당사자의 권리 의무
 
 제15조 (회사의 일반 의무)

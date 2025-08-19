@@ -6,7 +6,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 class AppVersionScreen extends StatefulWidget {
   const AppVersionScreen({super.key});
-
   @override
   State<AppVersionScreen> createState() => _AppVersionScreenState();
 }
