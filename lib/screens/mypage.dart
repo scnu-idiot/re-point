@@ -406,7 +406,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
         ),
       );
     }
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
