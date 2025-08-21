@@ -201,13 +201,13 @@
     },
     {
       "name": "google_mlkit_commons",
-      "rootUri": "file:///C:/Users/82106/AppData/Local/Pub/Cache/hosted/pub.dev/google_mlkit_commons-0.6.1",
+      "rootUri": "file:///C:/Users/82106/AppData/Local/Pub/Cache/hosted/pub.dev/google_mlkit_commons-0.8.1",
       "packageUri": "lib/",
       "languageVersion": "2.16"
     },
     {
       "name": "google_mlkit_text_recognition",
-      "rootUri": "file:///C:/Users/82106/AppData/Local/Pub/Cache/hosted/pub.dev/google_mlkit_text_recognition-0.11.0",
+      "rootUri": "file:///C:/Users/82106/AppData/Local/Pub/Cache/hosted/pub.dev/google_mlkit_text_recognition-0.13.1",
       "packageUri": "lib/",
       "languageVersion": "2.16"
     },
@@ -632,7 +632,7 @@
       "languageVersion": "3.5"
     }
   ],
-  "generated": "2025-08-21T16:50:21.650234Z",
+  "generated": "2025-08-21T17:39:10.583494Z",
   "generator": "pub",
   "generatorVersion": "3.5.3",
   "flutterRoot": "file:///C:/Users/82106/libraries/flutter",

@@ -31,7 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
   camera: ^0.10.5+5
-  google_mlkit_text_recognition: ^0.11.0
+  google_mlkit_text_recognition: ^0.13.0
   permission_handler: ^11.3.1
   kakao_flutter_sdk_user: ^1.5.0
   shared_preferences: ^2.2.2
