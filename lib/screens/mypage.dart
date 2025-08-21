@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // screens
 import 'history_screen.dart';
@@ -12,6 +13,7 @@ import 'terms_of_service_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'location_terms_screen.dart';
 import 'app_version_screen.dart';
+import '../services/region_setting_screen.dart';
 
 class MyPageScreen extends StatefulWidget {
   final String nickname;
@@ -46,13 +48,15 @@ class _MyPageScreenState extends State<MyPageScreen> {
   String email = 'walkholic@likelion.org';
   int points = 5000;
 
-  // 카카오 프로필
+  // 프로필 & 지역
   String? profileImageUrl;
+  String regionDisplay = '지역 미설정'; // 닉네임과 이메일 사이에 표시될 텍스트
 
   @override
   void initState() {
     super.initState();
     _loadKakaoProfile();
+    _loadRegion();
   }
 
   Future<void> _loadKakaoProfile() async {
@@ -66,6 +70,29 @@ class _MyPageScreenState extends State<MyPageScreen> {
     } catch (e) {
       debugPrint('카카오 프로필 불러오기 실패: $e');
     }
+  }
+
+  Future<void> _loadRegion() async {
+    final prefs = await SharedPreferences.getInstance();
+    final sido = prefs.getString('region_sido') ?? '';
+    final sigungu = prefs.getString('region_sigungu') ?? '';
+    final eupmyeondong = prefs.getString('region_eupmyeondong') ?? '';
+
+    String formatted;
+    if (sido.isEmpty && sigungu.isEmpty && eupmyeondong.isEmpty) {
+      formatted = '지역 미설정';
+    } else if (eupmyeondong.isNotEmpty) {
+      formatted = '$sido $sigungu $eupmyeondong';
+    } else if (sigungu.isNotEmpty) {
+      formatted = '$sido $sigungu';
+    } else {
+      formatted = sido;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      regionDisplay = formatted;
+    });
   }
 
   // ==== 헬퍼 ====
@@ -172,7 +199,9 @@ class _MyPageScreenState extends State<MyPageScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2))
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,8 +213,11 @@ class _MyPageScreenState extends State<MyPageScreen> {
             children: [
               Expanded(
                 child: Text(
-                  widget.nickname,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                  '${widget.nickname} 님',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -201,7 +233,43 @@ class _MyPageScreenState extends State<MyPageScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+
+          // ▽▽▽ 지역 표시 + 변경 ▽▽▽
+          const SizedBox(height: 6),
+          InkWell(
+            onTap: () async {
+              // 지역 변경으로 이동 -> 돌아오면 갱신
+              final changed = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const RegionSettingScreen(forceMode: false),
+                ),
+              );
+              if (changed == true) {
+                await _loadRegion();
+              }
+            },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.location_on_outlined,
+                    size: 16, color: Color(0xFF5E2AD7)),
+                const SizedBox(width: 4),
+                Text(
+                  regionDisplay,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.black87,
+                    decoration: TextDecoration.underline,
+                    decorationColor: Color(0xFF5E2AD7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // △△△ 지역 표시 + 변경 △△△
+
+          const SizedBox(height: 6),
           Text(email, style: const TextStyle(fontSize: 12, color: Colors.black54)),
           const SizedBox(height: 14),
 
@@ -215,15 +283,18 @@ class _MyPageScreenState extends State<MyPageScreen> {
               children: [
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                    padding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text('내 포인트',
-                            style: TextStyle(fontSize: 12, color: Colors.black54)),
+                            style:
+                            TextStyle(fontSize: 12, color: Colors.black54)),
                         const SizedBox(height: 4),
                         Text('${_fmt(points)} point',
-                            style: const TextStyle(fontWeight: FontWeight.w700)),
+                            style:
+                            const TextStyle(fontWeight: FontWeight.w700)),
                       ],
                     ),
                   ),
@@ -234,11 +305,13 @@ class _MyPageScreenState extends State<MyPageScreen> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const HistoryScreen()),
                       );
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 10, horizontal: 12),
                       alignment: Alignment.center,
                       child: const Text('이용내역',
                           style: TextStyle(fontWeight: FontWeight.w600)),
@@ -263,7 +336,9 @@ class _MyPageScreenState extends State<MyPageScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2))
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,10 +376,14 @@ class _MyPageScreenState extends State<MyPageScreen> {
   Widget _categoryRow(Color color, String label, int value) {
     return Row(
       children: [
-        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 8),
         Expanded(child: Text(label)),
-        Text('${_fmt(value)}원', style: const TextStyle(fontWeight: FontWeight.w600)),
+        Text('${_fmt(value)}원',
+            style: const TextStyle(fontWeight: FontWeight.w600)),
       ],
     );
   }
@@ -327,11 +406,14 @@ class _MyPageScreenState extends State<MyPageScreen> {
         ),
       );
     }
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2))
+        ],
       ),
       child: Column(
         children: [
@@ -350,7 +432,9 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 child: item(Icons.person_add_alt_1_outlined, '친구초대', () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => InviteScreen(nickname: widget.nickname)),
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            InviteScreen(nickname: widget.nickname)),
                   );
                 }),
               ),
@@ -389,7 +473,9 @@ class _MyPageScreenState extends State<MyPageScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2))
+        ],
       ),
       child: Column(
         children: [
@@ -437,6 +523,31 @@ class _MyPageScreenState extends State<MyPageScreen> {
             },
           ),
         ],
+      ),
+    );
+  }
+}
+/// 지역 텍스트 위젯
+/// - 부모의 regionDisplay를 직접 참조하려면 StatefulBuilder를 쓰거나
+///   여기처럼 Inherited 접근이 없어 간단히 빌더 콜백으로도 처리할 수 있지만,
+///   이번 구현은 상위 state의 값을 그대로 Text에 바인딩하도록
+///   _MyPageScreenState의 build 과정에서 setState 시 갱신되도록 합니다.
+///   따라서 이 위젯은 상수 형태로 두고, 상위에서 rebuild되며 텍스트가 갱신됩니다.
+class _RegionText extends StatelessWidget {
+  const _RegionText();
+
+  @override
+  Widget build(BuildContext context) {
+    // 상위 State에 접근하기 위해 context.findAncestorStateOfType 사용
+    final state = context.findAncestorStateOfType<_MyPageScreenState>();
+    final value = state?.regionDisplay ?? '지역 미설정';
+    return Text(
+      value,
+      style: const TextStyle(
+        fontSize: 12,
+        color: Colors.black87,
+        decoration: TextDecoration.underline,
+        decorationColor: Color(0xFF5E2AD7),
       ),
     );
   }

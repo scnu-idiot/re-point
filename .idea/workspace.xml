@@ -4,9 +4,14 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8323f094-8834-4618-8c1d-a604b9211120" name="Changes" comment="mypage edit">
+    <list default="true" id="8323f094-8834-4618-8c1d-a604b9211120" name="Changes" comment="report">
+      <change afterPath="$PROJECT_DIR$/lib/services/region_data.dart" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/lib/services/region_setting_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.flutter-plugins-dependencies" beforeDir="false" afterPath="$PROJECT_DIR$/.flutter-plugins-dependencies" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/login_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/login_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/screens/mypage.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/mypage.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/withdrawal_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/withdrawal_screen.dart" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -168,7 +173,14 @@
       <option name="project" value="LOCAL" />
       <updated>1755599947772</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="report">
+      <created>1755601394756</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1755601394756</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -206,6 +218,7 @@
     <MESSAGE value="약관 및 방침 추가" />
     <MESSAGE value="google-services.json" />
     <MESSAGE value="mypage edit" />
-    <option name="LAST_COMMIT_MESSAGE" value="mypage edit" />
+    <MESSAGE value="report" />
+    <option name="LAST_COMMIT_MESSAGE" value="report" />
   </component>
 </project>
