@@ -4,14 +4,17 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8323f094-8834-4618-8c1d-a604b9211120" name="Changes" comment="report">
-      <change afterPath="$PROJECT_DIR$/lib/services/region_data.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/services/region_setting_screen.dart" afterDir="false" />
+    <list default="true" id="8323f094-8834-4618-8c1d-a604b9211120" name="Changes" comment="회원탈퇴, 지역 정보 설정, 마이페이지 지역 정보 수정">
+      <change afterPath="$PROJECT_DIR$/lib/data/history_data.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.dart_tool/flutter_build/63aa41cf531dc739f80cb9178e0eb21e/.filecache" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/flutter_build/63aa41cf531dc739f80cb9178e0eb21e/.filecache" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.dart_tool/flutter_build/63aa41cf531dc739f80cb9178e0eb21e/app.dill" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/flutter_build/63aa41cf531dc739f80cb9178e0eb21e/app.dill" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.dart_tool/flutter_build/63aa41cf531dc739f80cb9178e0eb21e/kernel_snapshot_program.d" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/flutter_build/63aa41cf531dc739f80cb9178e0eb21e/kernel_snapshot_program.d" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.dart_tool/flutter_build/63aa41cf531dc739f80cb9178e0eb21e/kernel_snapshot_program.stamp" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/flutter_build/63aa41cf531dc739f80cb9178e0eb21e/kernel_snapshot_program.stamp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.dart_tool/flutter_build/63aa41cf531dc739f80cb9178e0eb21e/program.dill" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/flutter_build/63aa41cf531dc739f80cb9178e0eb21e/program.dill" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.flutter-plugins-dependencies" beforeDir="false" afterPath="$PROJECT_DIR$/.flutter-plugins-dependencies" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/login_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/login_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/mypage.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/mypage.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/withdrawal_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/withdrawal_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/history_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/history_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/notification_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/notification_screen.dart" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -180,7 +183,14 @@
       <option name="project" value="LOCAL" />
       <updated>1755601394756</updated>
     </task>
-    <option name="localTasksCounter" value="14" />
+    <task id="LOCAL-00014" summary="회원탈퇴, 지역 정보 설정, 마이페이지 지역 정보 수정">
+      <created>1755779476519</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1755779476520</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -219,6 +229,7 @@
     <MESSAGE value="google-services.json" />
     <MESSAGE value="mypage edit" />
     <MESSAGE value="report" />
-    <option name="LAST_COMMIT_MESSAGE" value="report" />
+    <MESSAGE value="회원탈퇴, 지역 정보 설정, 마이페이지 지역 정보 수정" />
+    <option name="LAST_COMMIT_MESSAGE" value="회원탈퇴, 지역 정보 설정, 마이페이지 지역 정보 수정" />
   </component>
 </project>
