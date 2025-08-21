@@ -1,8 +1,11 @@
+// lib/screens/receipt_scan_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+
+enum CaptureStep { bizno, time, amount, review }
 
 class ReceiptScanScreen extends StatefulWidget {
   const ReceiptScanScreen({super.key});
@@ -12,31 +15,26 @@ class ReceiptScanScreen extends StatefulWidget {
 }
 
 class _ReceiptScanScreenState extends State<ReceiptScanScreen> {
-  CameraController? _cameraController;
+  CameraController? _controller;
+  final _textRecognizer = TextRecognizer();
+  bool _busy = false;
+  bool _torchOn = true;
 
-  // ⛑️ null-safe: 초기화 실패/권한 거부 시에도 dispose에서 안전
-  TextRecognizer? _koRecognizer;    // korean
-  TextRecognizer? _latinRecognizer; // latin(영어/숫자)
+  CaptureStep _step = CaptureStep.bizno;
 
-  bool _isBusy = false;
-
-  // 원문 및 추출 결과
-  String _rawText = '';
-  String? _storeName;
-  String? _address;
-  int? _totalAmount;
-
-  /// 화면 비율 기준 스캔영역 (중앙) - UI용
-  static const double scanBoxWidthRatio = 0.80;
-  static const double scanBoxAspect = 0.75; // width / height
+  String? _bizno;        // 하이픈 표준화 결과(###-##-#####)
+  String? _timeIso;      // 내부 저장(+09:00)
+  String? _timeDisplay;  // 화면표시(+09:00 제거)
+  int? _amount;
+  String _lastRaw = "-";
 
   @override
   void initState() {
     super.initState();
-    _initializeCameraAndRecognizer();
+    _initCamera();
   }
 
-  Future<void> _initializeCameraAndRecognizer() async {
+  Future<void> _initCamera() async {
     try {
       final status = await Permission.camera.request();
       if (!status.isGranted) {
@@ -48,439 +46,575 @@ class _ReceiptScanScreenState extends State<ReceiptScanScreen> {
       }
 
       final cameras = await availableCameras();
-      final backCamera = cameras.firstWhere(
+      final back = cameras.firstWhere(
             (c) => c.lensDirection == CameraLensDirection.back,
         orElse: () => cameras.first,
       );
 
-      // ⛑️ 안정성 우선: medium (필요시 high로 올려도 OK)
-      _cameraController = CameraController(backCamera, ResolutionPreset.medium);
-      await _cameraController!.initialize();
+      _controller = CameraController(
+        back,
+        ResolutionPreset.high,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.yuv420,
+      );
+      await _controller!.initialize();
 
-      // ⛑️ 인식기 생성 (한/영 각각)
-      _koRecognizer = TextRecognizer(script: TextRecognitionScript.korean);
-      _latinRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+      // 플래시 자동 (가능하면)
+      try {
+        await _controller!.setFlashMode(FlashMode.auto);
+        _torchOn = true;
+      } catch (_) {
+        _torchOn = false;
+      }
 
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      setState(() {});
+      _announceStep(); // 시작 안내
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('초기화 실패: $e')),
+        SnackBar(content: Text('카메라 초기화 실패: $e')),
       );
     }
   }
-
-  Future<void> _captureAndRecognize() async {
-    if (_cameraController == null || _isBusy) return;
-    setState(() => _isBusy = true);
-
-    try {
-      final picture = await _cameraController!.takePicture();
-
-      // 현재는 전체 이미지로 OCR (원하면 스캔영역 크롭 추가 가능)
-      final inputImage = InputImage.fromFilePath(picture.path);
-
-      // ⛑️ 인식기 null 가능 → 각각 시도
-      final ko = await _koRecognizer?.processImage(inputImage);
-      final la = await _latinRecognizer?.processImage(inputImage);
-
-      if (ko == null && la == null) {
-        throw '텍스트 인식기가 초기화되지 않았습니다. (네트워크/Google Play Services 확인)';
-      }
-
-      final merged = _mergeRecognized(ko, la);
-      final fields = _extractFields(
-        ko ?? RecognizedText(text: '', blocks: const []),
-        la ?? RecognizedText(text: '', blocks: const []),
-        merged,
-      );
-
-      setState(() {
-        _rawText = merged;
-        _storeName = fields.storeName;
-        _address = fields.address;
-        _totalAmount = fields.totalAmount;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('인식 중 오류: $e')),
-      );
-    } finally {
-      if (mounted) setState(() => _isBusy = false);
-    }
-  }
-
-  // === OCR 결과 병합: 라인 기준 합치고 중복 제거 ===
-  String _mergeRecognized(RecognizedText? ko, RecognizedText? la) {
-    final set = <String>{};
-    void collect(RecognizedText? rt) {
-      if (rt == null) return;
-      for (final b in rt.blocks) {
-        for (final l in b.lines) {
-          final s = l.text.trim();
-          if (s.isNotEmpty) set.add(s);
-        }
-      }
-    }
-    collect(ko);
-    collect(la);
-    return set.join('\n');
-  }
-
-  // === 필드 추출 ===
-  _Extracted _extractFields(RecognizedText ko, RecognizedText la, String merged) {
-    final total = _parseTotal(merged);
-    final address = _parseAddress(merged);
-    final store = _pickStoreNameFromBlocks(ko)
-        ?? _pickStoreNameFromBlocks(la)
-        ?? _pickStoreNameFromMerged(merged);
-    return _Extracted(storeName: store, address: address, totalAmount: total);
-  }
-
-  int? _parseTotal(String text) {
-    final totalRegex = RegExp(
-      r'(총\s*액|합\s*계|받을\s*금액|결제\s*금액|카드\s*매출|신용\s*매출|최종\s*결제)[^\d]*(\d{1,3}(?:,\d{3})+|\d+)',
-      caseSensitive: false,
-    );
-    final m = totalRegex.firstMatch(text);
-    if (m != null) {
-      final numStr = m.group(2)!.replaceAll(',', '');
-      return int.tryParse(numStr);
-    }
-
-    // 키워드가 없으면 하단의 숫자 큰 라인 추정
-    final numberLine = RegExp(r'^\s*(\d{1,3}(?:,\d{3})+|\d+)\s*원?\s*$', multiLine: true);
-    final matches = numberLine.allMatches(text).toList();
-    if (matches.isNotEmpty) {
-      final last = matches.last.group(1)!.replaceAll(',', '');
-      return int.tryParse(last);
-    }
-    return null;
-  }
-
-  String? _parseAddress(String text) {
-    // 도로명 주소 후보
-    final addrLine = RegExp(
-      r'((?:[가-힣A-Za-z]+\s*(?:도|시))?\s*[가-힣A-Za-z]+\s*(?:시|군|구)\s*[가-힣A-Za-z0-9\-]+(?:로|길|동)\s*\d+[^\n]*)',
-      multiLine: true,
-    );
-    final m = addrLine.firstMatch(text);
-    if (m != null) return m.group(1)!.trim();
-
-    // 지번 주소 후보
-    final jibun = RegExp(
-      r'([가-힣A-Za-z]+\s*(?:시|군|구)\s*[가-힣A-Za-z0-9\-]+\s*(?:동|읍|면)\s*\d+-?\d*\s*(?:번지)?[^\n]*)',
-      multiLine: true,
-    );
-    final m2 = jibun.firstMatch(text);
-    return m2?.group(1)?.trim();
-  }
-
-  String? _pickStoreNameFromBlocks(RecognizedText rt) {
-    final badWords = RegExp(r'(영수증|거래|승인|신용|매출|사업자|면세|부가세|계산서|발행|고객|카드)', caseSensitive: false);
-    final addressHints = RegExp(r'(시|군|구|로|길|동|읍|면|번지|호|지번|도로명)');
-    final phone = RegExp(r'(TEL|전화|FAX|휴대|010|02\-|\d{2,3}-\d{3,4}-\d{4})', caseSensitive: false);
-
-    for (final b in rt.blocks) {
-      for (final l in b.lines) {
-        final s = l.text.trim();
-        if (s.length < 2 || s.length > 25) continue;
-        if (badWords.hasMatch(s)) continue;
-        if (addressHints.hasMatch(s)) continue;
-        if (phone.hasMatch(s)) continue;
-
-        final digits = RegExp(r'\d').allMatches(s).length;
-        if (digits > (s.length * 0.3)) continue;
-
-        return s;
-      }
-    }
-    return null;
-  }
-
-  String? _pickStoreNameFromMerged(String text) {
-    final lines = text.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    final badWords = RegExp(r'(영수증|거래|승인|신용|매출|사업자|면세|부가세|계산서|발행|고객|카드)', caseSensitive: false);
-    final addressHints = RegExp(r'(시|군|구|로|길|동|읍|면|번지|호|지번|도로명)');
-    final phone = RegExp(r'(TEL|전화|FAX|휴대|010|02\-|\d{2,3}-\d{3,4}-\d{4})', caseSensitive: false);
-
-    for (final s in lines.take(10)) {
-      if (s.length < 2 || s.length > 25) continue;
-      if (badWords.hasMatch(s)) continue;
-      if (addressHints.hasMatch(s)) continue;
-      if (phone.hasMatch(s)) continue;
-
-      final digits = RegExp(r'\d').allMatches(s).length;
-      if (digits > (s.length * 0.3)) continue;
-      return s;
-    }
-    return null;
-  }
-
-  // (선택) 스캔영역 크롭 — 운영 시 프리뷰/실제 사진 매핑 보정 필요
-  /*
-  Future<String> _cropToScanBox(String filePath) async {
-    // pubspec에 image: ^4.x 추가 필요
-    final bytes = await File(filePath).readAsBytes();
-    final img = decodeImage(bytes)!;
-
-    final screen = MediaQuery.of(context).size;
-    final boxW = (screen.width * scanBoxWidthRatio);
-    final boxH = boxW / scanBoxAspect;
-    final left = (screen.width - boxW) / 2;
-    final top  = (screen.height - boxH) / 2;
-
-    final scaleX = img.width / screen.width;
-    final scaleY = img.height / screen.height;
-
-    final cropLeft = (left * scaleX).round().clamp(0, img.width - 1);
-    final cropTop  = (top  * scaleY).round().clamp(0, img.height - 1);
-    final cropW    = (boxW * scaleX).round().clamp(1, img.width - cropLeft);
-    final cropH    = (boxH * scaleY).round().clamp(1, img.height - cropTop);
-
-    final cropped = copyCrop(img, x: cropLeft, y: cropTop, width: cropW, height: cropH);
-    final outPath = filePath.replaceFirst('.jpg', '_crop.jpg');
-    await File(outPath).writeAsBytes(encodeJpg(cropped, quality: 95));
-    return outPath;
-  }
-  */
 
   @override
   void dispose() {
-    _cameraController?.dispose();
-    _koRecognizer?.close();
-    _latinRecognizer?.close();
+    _controller?.dispose();
+    _textRecognizer.close();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator()),
-      );
+  // ===== 단계 안내 =====
+  String _stepMessage([CaptureStep? s]) {
+    switch (s ?? _step) {
+      case CaptureStep.bizno:
+        return "사업자번호를 찍어주세요";
+      case CaptureStep.time:
+        return "거래일시를 찍어주세요";
+      case CaptureStep.amount:
+        return "총 금액(합계/총액)을 찍어주세요";
+      case CaptureStep.review:
+        return "인식 결과를 확인하세요";
     }
+  }
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final screenW = constraints.maxWidth;
-          final screenH = constraints.maxHeight;
-
-          final boxW = screenW * scanBoxWidthRatio;
-          final boxH = boxW / scanBoxAspect;
-          final boxLeft = (screenW - boxW) / 2;
-          final boxTop  = (screenH - boxH) / 2;
-          final scanRect = Rect.fromLTWH(boxLeft, boxTop, boxW, boxH);
-
-          return Stack(
+  Future<void> _showCenterDialog(String message) async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          contentPadding: const EdgeInsets.fromLTRB(20, 24, 20, 4),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // 1) 카메라 프리뷰(전체)
-              Positioned.fill(
-                child: AspectRatio(
-                  aspectRatio: _cameraController!.value.aspectRatio,
-                  child: CameraPreview(_cameraController!),
-                ),
-              ),
-
-              // 2) 반투명 오버레이(바깥만) + 가운데 투명 스캔창
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _ScanOverlayPainter(
-                    holeRect: RRect.fromRectXY(scanRect, 16, 16),
-                    dimColor: Colors.black.withOpacity(0.55),
-                    borderColor: Colors.white,
-                    borderWidth: 3,
-                    showCorners: true,
-                    cornerLength: 22,
-                    cornerWidth: 4,
-                  ),
-                ),
-              ),
-
-              // 3) 하단 패널 + 촬영 버튼 + 결과
-              Positioned(
-                bottom: 40,
-                left: 0,
-                right: 0,
-                child: Column(
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 24),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.95),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: '15',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.black,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: ' 포인트 적립 가능',
-                                  style: TextStyle(color: Colors.black),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          GestureDetector(
-                            onTap: _isBusy ? null : _captureAndRecognize,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: _isBusy ? Colors.grey : const Color(0xFF7A5EF2),
-                                shape: BoxShape.circle,
-                              ),
-                              padding: const EdgeInsets.all(10),
-                              child: const Icon(Icons.camera_alt, color: Colors.white, size: 22),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    if (_storeName != null || _address != null || _totalAmount != null || _rawText.isNotEmpty)
-                      Container(
-                        constraints: const BoxConstraints(maxWidth: 380),
-                        padding: const EdgeInsets.all(12),
-                        margin: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.97),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (_storeName != null) _kv('상호', _storeName!),
-                            if (_address != null) _kv('주소', _address!),
-                            if (_totalAmount != null) _kv('합계', '${_totalAmount!} 원'),
-                            if (_rawText.isNotEmpty) const Divider(height: 18),
-                            if (_rawText.isNotEmpty)
-                              Text(
-                                _rawText,
-                                style: const TextStyle(color: Colors.black54, fontSize: 12),
-                              ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
+              const Icon(Icons.info_outline, size: 28),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ],
-          );
-        },
-      ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text("확인"),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _kv(String k, String v) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  void _announceStep([CaptureStep? step]) {
+    final msg = _stepMessage(step);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showCenterDialog(msg);
+    });
+  }
+
+  // ===== 촬영/인식 =====
+  Future<void> _shootAndRecognize() async {
+    final cam = _controller;
+    if (cam == null || !cam.value.isInitialized || _busy) return;
+    setState(() => _busy = true);
+
+    try {
+      final file = await cam.takePicture();
+      final input = InputImage.fromFile(File(file.path));
+      final result = await _textRecognizer.processImage(input);
+      final text = result.text;
+      _lastRaw = text;
+
+      bool ok = false;
+
+      switch (_step) {
+        case CaptureStep.bizno:
+          final b = _extractBizNo(text);
+          if (b != null) {
+            _bizno = b;
+            ok = true;
+          }
+          break;
+        case CaptureStep.time:
+          final iso = _extractDateTimeIso(text);
+          if (iso != null) {
+            _timeIso = iso;
+            _timeDisplay = _toDisplayNoTZ(iso); // +09:00 제거해서 표시
+            ok = true;
+          }
+          break;
+        case CaptureStep.amount:
+          final a = _extractAmountSmart(text);
+          if (a != null) {
+            _amount = a;
+            ok = true;
+          }
+          break;
+        case CaptureStep.review:
+          ok = true;
+          break;
+      }
+
+      if (!ok) {
+        final failMsg = _step == CaptureStep.bizno
+            ? "사업자번호를 인식하지 못했습니다. 다시 시도해주세요."
+            : _step == CaptureStep.time
+            ? "거래일시를 인식하지 못했습니다. 다시 시도해주세요."
+            : "총 금액을 인식하지 못했습니다. 다시 시도해주세요.";
+        _showCenterDialog(failMsg);
+      }
+    } catch (e) {
+      _lastRaw = "OCR 실패: $e";
+      _showCenterDialog("처리 중 오류가 발생했습니다. 다시 촬영해 주세요.");
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _nextStep() {
+    setState(() {
+      if (_step == CaptureStep.bizno) _step = CaptureStep.time;
+      else if (_step == CaptureStep.time) _step = CaptureStep.amount;
+      else if (_step == CaptureStep.amount) _step = CaptureStep.review;
+    });
+    _announceStep();
+  }
+
+  void _resetStep(CaptureStep s) {
+    setState(() {
+      _step = s;
+      if (s == CaptureStep.bizno) _bizno = null;
+      if (s == CaptureStep.time) {
+        _timeIso = null;
+        _timeDisplay = null;
+      }
+      if (s == CaptureStep.amount) _amount = null;
+    });
+    _announceStep(s);
+  }
+
+  // ===== 파싱 유틸 =====
+  String? _extractBizNo(String text) => extractValidBizNo(text);
+
+  String _toDisplayNoTZ(String iso) {
+    final core = iso.split('+').first;
+    return core.replaceFirst('T', ' ');
+  }
+
+  String? _extractDateTimeIso(String text) {
+    // yyyy.mm.dd HH:MM(:SS)
+    final r1 = RegExp(r'(\d{4})[./-](\d{1,2})[./-](\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?');
+    final m1 = r1.firstMatch(text);
+    if (m1 != null) {
+      final y = m1.group(1)!.padLeft(4, '0');
+      final mo = m1.group(2)!.padLeft(2, '0');
+      final d = m1.group(3)!.padLeft(2, '0');
+      final hh = m1.group(4)!.padLeft(2, '0');
+      final mm = m1.group(5)!.padLeft(2, '0');
+      final ss = (m1.group(6) ?? "00").padLeft(2, '0');
+      return "$y-$mo-${d}T$hh:$mm:$ss+09:00";
+    }
+    // yyyymmdd HHMM(SS)
+    final r2 = RegExp(r'(\d{4})(\d{2})(\d{2})\s*(\d{2})(\d{2})(\d{2})?');
+    final m2 = r2.firstMatch(text);
+    if (m2 != null) {
+      final y = m2.group(1)!;
+      final mo = m2.group(2)!;
+      final d = m2.group(3)!;
+      final hh = m2.group(4)!;
+      final mm = m2.group(5)!;
+      final ss = (m2.group(6) ?? "00");
+      return "$y-$mo-${d}T$hh:$mm:$ss+09:00";
+    }
+    // yyyy/mm/dd HH:MM(:SS)
+    final r3 = RegExp(r'(\d{4})/(\d{1,2})/(\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?');
+    final m3 = r3.firstMatch(text);
+    if (m3 != null) {
+      final y = m3.group(1)!.padLeft(4, '0');
+      final mo = m3.group(2)!.padLeft(2, '0');
+      final d = m3.group(3)!.padLeft(2, '0');
+      final hh = m3.group(4)!.padLeft(2, '0');
+      final mm = m3.group(5)!.padLeft(2, '0');
+      final ss = (m3.group(6) ?? "00").padLeft(2, '0');
+      return "$y-$mo-${d}T$hh:$mm:$ss+09:00";
+    }
+    return null;
+  }
+
+  int? _extractAmountSmart(String text) {
+    // 키워드 기반(가장 마지막 매칭 채택)
+    final kw = RegExp(
+      r'(총\s*금액|합계|총액|결제\s*금액|결제금액|받을\s*금액|청구금액)\s*[:\-]?\s*([0-9,]+)\s*원?',
+      caseSensitive: false,
+    );
+    final m1 = kw.allMatches(text).toList();
+    if (m1.isNotEmpty) {
+      final last = m1.last;
+      final digits = (last.group(2) ?? "").replaceAll(",", "");
+      final val = int.tryParse(digits);
+      if (val != null) return val;
+    }
+    // 숫자 후보 중 최댓값(백 단위 이상)
+    final nums = RegExp(r'\b[0-9]{1,3}(?:,[0-9]{3})+\b|\b[0-9]{4,}\b');
+    final values = <int>[];
+    for (final m in nums.allMatches(text)) {
+      final v = int.tryParse(m.group(0)!.replaceAll(',', ''));
+      if (v != null) values.add(v);
+    }
+    if (values.isNotEmpty) {
+      values.sort();
+      return values.last;
+    }
+    return null;
+  }
+
+  // ===== UI =====
+  @override
+  Widget build(BuildContext context) {
+    final cam = _controller;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("영수증 OCR"),
+        actions: [
+          if (cam != null && cam.value.isInitialized && cam.value.flashMode != FlashMode.off)
+            IconButton(
+              tooltip: _torchOn ? "손전등 끄기" : "손전등 켜기",
+              icon: Icon(_torchOn ? Icons.flash_on : Icons.flash_off),
+              onPressed: () async {
+                if (_controller == null) return;
+                try {
+                  if (_torchOn) {
+                    await _controller!.setFlashMode(FlashMode.off);
+                    setState(() => _torchOn = false);
+                  } else {
+                    await _controller!.setFlashMode(FlashMode.torch);
+                    setState(() => _torchOn = true);
+                  }
+                } catch (_) {}
+              },
+            ),
+        ],
+      ),
+      body: cam == null || !cam.value.isInitialized
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
-          SizedBox(width: 44, child: Text(k, style: const TextStyle(fontWeight: FontWeight.w700))),
-          const SizedBox(width: 8),
-          Expanded(child: Text(v)),
+          // 상단 굵은 제목
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _currentTitle(),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+
+          // 카메라 + 정사각형 가이드
+          Expanded(
+            child: Stack(
+              children: [
+                Positioned.fill(child: CameraPreview(cam)),
+                // 중앙 정사각형 가이드
+                Center(
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: CustomPaint(
+                      painter: _SquareGuidePainter(),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 아래 결과/버튼 패널
+          Container(
+            width: double.infinity,
+            color: Colors.grey.shade100,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildCurrentValueRow(),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    // 다시찍기
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _busy ? null : () => _resetStep(_step),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text("다시찍기"),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // 촬영(인식)
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: _busy ? null : _shootAndRecognize,
+                        icon: const Icon(Icons.camera_alt),
+                        label: const Text("촬영"),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // 다음 단계
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _busy
+                            ? null
+                            : () {
+                          if (_step == CaptureStep.review) {
+                            _showCenterDialog("인식 완료! 저장/전송 로직을 연결해 주세요.");
+                          } else {
+                            _nextStep();
+                          }
+                        },
+                        icon: const Icon(Icons.arrow_forward),
+                        label: Text(_step == CaptureStep.review ? "마침" : "다음"),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
-}
 
-/// 반투명 스크림(바깥) + 가운데 구멍(완전 투명) + 테두리/코너
-class _ScanOverlayPainter extends CustomPainter {
-  final RRect holeRect;
-  final Color dimColor;
-  final Color borderColor;
-  final double borderWidth;
-  final bool showCorners;
-  final double cornerLength;
-  final double cornerWidth;
-
-  _ScanOverlayPainter({
-    required this.holeRect,
-    required this.dimColor,
-    required this.borderColor,
-    required this.borderWidth,
-    this.showCorners = true,
-    this.cornerLength = 20,
-    this.cornerWidth = 4,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final outer = Path()..addRect(Offset.zero & size);
-    final inner = Path()..addRRect(holeRect);
-    final overlay = Path.combine(PathOperation.difference, outer, inner);
-
-    final scrimPaint = Paint()..color = dimColor;
-    canvas.drawPath(overlay, scrimPaint); // 가운데는 완전 투명
-
-    final borderPaint = Paint()
-      ..color = borderColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = borderWidth;
-    canvas.drawRRect(holeRect, borderPaint);
-
-    if (showCorners) {
-      final p = Paint()
-        ..color = borderColor
-        ..strokeWidth = cornerWidth
-        ..strokeCap = StrokeCap.round;
-      final r = holeRect.outerRect;
-      final rad = holeRect.blRadiusX;
-
-      // Top-Left
-      canvas.drawLine(Offset(r.left, r.top + rad), Offset(r.left, r.top + rad + cornerLength), p);
-      canvas.drawLine(Offset(r.left + rad, r.top), Offset(r.left + rad + cornerLength, r.top), p);
-      // Top-Right
-      canvas.drawLine(Offset(r.right, r.top + rad), Offset(r.right, r.top + rad + cornerLength), p);
-      canvas.drawLine(Offset(r.right - rad, r.top), Offset(r.right - rad - cornerLength, r.top), p);
-      // Bottom-Left
-      canvas.drawLine(Offset(r.left, r.bottom - rad), Offset(r.left, r.bottom - rad - cornerLength), p);
-      canvas.drawLine(Offset(r.left + rad, r.bottom), Offset(r.left + rad + cornerLength, r.bottom), p);
-      // Bottom-Right
-      canvas.drawLine(Offset(r.right, r.bottom - rad), Offset(r.right, r.bottom - rad - cornerLength), p);
-      canvas.drawLine(Offset(r.right - rad, r.bottom), Offset(r.right - rad - cornerLength, r.bottom), p);
+  String _currentTitle() {
+    switch (_step) {
+      case CaptureStep.bizno:
+        return "사업자번호";
+      case CaptureStep.time:
+        return "거래일시";
+      case CaptureStep.amount:
+        return "총 금액";
+      case CaptureStep.review:
+        return "인식 결과";
     }
   }
 
-  @override
-  bool shouldRepaint(covariant _ScanOverlayPainter old) =>
-      old.holeRect != holeRect ||
-          old.dimColor != dimColor ||
-          old.borderColor != borderColor ||
-          old.borderWidth != borderWidth ||
-          old.showCorners != showCorners ||
-          old.cornerLength != cornerLength ||
-          old.cornerWidth != cornerWidth;
+  Widget _buildCurrentValueRow() {
+    switch (_step) {
+      case CaptureStep.bizno:
+        return _kvRow("사업자번호", _bizno ?? "-");
+      case CaptureStep.time:
+        return _kvRow("거래일시", _timeDisplay ?? "-");
+      case CaptureStep.amount:
+        final disp = _amount != null
+            ? "${_amount!.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}원"
+            : "-";
+        return _kvRow("총 금액", disp);
+      case CaptureStep.review:
+        final dispAmt = _amount != null
+            ? "${_amount!.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}원"
+            : "-";
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _kvRow("사업자번호", _bizno ?? "-"),
+            const SizedBox(height: 6),
+            _kvRow("거래일시", _timeDisplay ?? "-", sub: _timeIso != null ? "(ISO: $_timeIso)" : null),
+            const SizedBox(height: 6),
+            _kvRow("총 금액", dispAmt),
+          ],
+        );
+    }
+  }
+
+  Widget _kvRow(String k, String v, {String? sub}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(width: 88, child: Text(k, style: const TextStyle(fontWeight: FontWeight.w700))),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(v, style: const TextStyle(fontSize: 16)),
+              if (sub != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(sub, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-class _Extracted {
-  final String? storeName;
-  final String? address;
-  final int? totalAmount;
-  _Extracted({this.storeName, this.address, this.totalAmount});
+/// 중앙 정사각형 가이드: 바깥은 어둡게, 테두리 흰색
+class _SquareGuidePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paintDark = Paint()..color = Colors.black.withOpacity(0.45);
+    final paintBorder = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+
+    // 전체 영역 어둡게
+    final full = Path()..addRect(Offset.zero & size);
+
+    // 중앙 정사각형
+    final edge = size.shortestSide;
+    final left = (size.width - edge) / 2;
+    final top = (size.height - edge) / 2;
+    final square = Rect.fromLTWH(left, top, edge, edge);
+
+    // 바깥 어둡게(정사각형만 구멍)
+    final hole = Path.combine(PathOperation.difference, full, Path()..addRect(square));
+    canvas.drawPath(hole, paintDark);
+
+    // 테두리
+    canvas.drawRect(square, paintBorder);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// ===============================================
+/// 사업자등록번호 정규식 + 체크섬 검증 + 문맥 점수화
+/// ===============================================
+
+/// 메인 추출 함수: 표준 포맷 "###-##-#####" 반환, 없으면 null
+String? extractValidBizNo(String fullText) {
+  final text = fullText.replaceAll('\u00A0', ' '); // NBSP 정리
+  final lines = text.split(RegExp(r'\r?\n')).map((e) => e.trim()).toList();
+
+  // 라벨(사업자/등록/번호) 붙은 줄 최우선
+  final labelRegex = RegExp(
+    r'(사업자\s*등록\s*번호|사업자\s*번호|사업자등록번호)\s*[:\-]?\s*([0-9\-\s]{10,14})',
+    caseSensitive: false,
+  );
+  // 하이픈 3-2-5
+  final hyphenRegex = RegExp(r'\b(\d{3})\s*-\s*(\d{2})\s*-\s*(\d{5})\b');
+  // 붙임 10자리(양옆 숫자 금지)
+  final plain10Regex = RegExp(r'(?<!\d)(\d{10})(?!\d)');
+  // 전화번호 라인 배제
+  final phoneLike = RegExp(r'\b\d{2,3}-\d{3,4}-\d{4}\b');
+
+  final candidates = <_BizCand>[];
+
+  for (var i = 0; i < lines.length; i++) {
+    final line = lines[i];
+    if (phoneLike.hasMatch(line)) continue;
+
+    // (A) 라벨형
+    for (final m in labelRegex.allMatches(line)) {
+      final raw = m.group(2)!;
+      final digits = raw.replaceAll(RegExp(r'\D'), '');
+      if (digits.length == 10 && _isValidBizChecksum(digits)) {
+        candidates.add(_BizCand(value: _formatBiz(digits), line: i, score: 100));
+      }
+    }
+
+    // (B) 하이픈형
+    for (final m in hyphenRegex.allMatches(line)) {
+      final digits = '${m.group(1)}${m.group(2)}${m.group(3)}';
+      if (_isValidBizChecksum(digits)) {
+        final hasLabelWord = RegExp(r'사업자|등록|번호').hasMatch(line);
+        candidates.add(_BizCand(
+          value: _formatBiz(digits),
+          line: i,
+          score: 70 + (hasLabelWord ? 10 : 0),
+        ));
+      }
+    }
+
+    // (C) 10자리 붙임형
+    for (final m in plain10Regex.allMatches(line)) {
+      final digits = m.group(1)!;
+      // 날짜/일자 근처면 감점 (오탐 줄이기)
+      final nearDate = RegExp(r'\b\d{4}[./-]?\d{1,2}[./-]?\d{1,2}\b').hasMatch(line);
+      if (_isValidBizChecksum(digits)) {
+        final base = 50;
+        final penalty = nearDate ? 15 : 0;
+        candidates.add(_BizCand(
+          value: _formatBiz(digits),
+          line: i,
+          score: base - penalty,
+        ));
+      }
+    }
+  }
+
+  if (candidates.isEmpty) return null;
+
+  // 점수 높은 순 → 중복 값 제거 → 첫 값 반환
+  candidates.sort((a, b) => b.score.compareTo(a.score));
+  final seen = <String>{};
+  for (final c in candidates) {
+    if (seen.add(c.value)) return c.value;
+  }
+  return candidates.first.value;
+}
+
+class _BizCand {
+  final String value;
+  final int line;
+  final int score;
+  _BizCand({required this.value, required this.line, required this.score});
+}
+
+/// 체크섬 검증 (국내 사업자등록번호 10자리)
+bool _isValidBizChecksum(String digits10) {
+  final d = digits10.replaceAll(RegExp(r'\D'), '');
+  if (d.length != 10) return false;
+
+  final nums = d.split('').map(int.parse).toList();
+  // 가중치: 1,3,7,1,3,7,1,3,5 (앞 9자리)
+  const w = [1, 3, 7, 1, 3, 7, 1, 3, 5];
+  int sum = 0;
+  for (int i = 0; i < 9; i++) {
+    sum += nums[i] * w[i];
+  }
+  sum += (nums[8] * 5) ~/ 10; // 9번째*5의 몫
+  final check = (10 - (sum % 10)) % 10;
+  return check == nums[9];
+}
+
+/// 표준 포맷으로 변환 ###-##-#####
+String _formatBiz(String digits10) {
+  final d = digits10.replaceAll(RegExp(r'\D'), '');
+  if (d.length != 10) return digits10;
+  return '${d.substring(0, 3)}-${d.substring(3, 5)}-${d.substring(5)}';
 }
