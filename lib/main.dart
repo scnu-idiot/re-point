@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+import 'package:flutter/services.dart';   // ✅ 시스템 UI 제어용 import
 
 import 'firebase_options.dart';        // flutterfire configure가 생성
 import 'screens/splash_screen.dart';
@@ -16,11 +17,15 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // ✅ 앱 전체에서 상태바 + 네비게이션바 숨김 (Immersive 모드)
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
