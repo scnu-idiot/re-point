@@ -1,0 +1,4 @@
+lib/config.dart
+/build/
+
+android/app/google-services.json
