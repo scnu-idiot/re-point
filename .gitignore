@@ -1,4 +1,22 @@
-lib/config.dart
-/build/
+# Flutter/Dart/Pub stuff
+.dart_tool/
+.packages
+.pub-cache/
+build/
+flutter_*.png
+*.flutter-plugins
+*.flutter-plugins-dependencies
 
+# Project specific
+lib/config.dart
 android/app/google-services.json
+
+# IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# OS generated files
+.DS_Store
+Thumbs.db
