@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/region_data.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // TODO: (백엔드 연동 준비)
 // - Firebase Firestore 저장 예시
@@ -50,14 +52,44 @@ class _RegionSettingScreenState extends State<RegionSettingScreen> {
 
   Future<void> _save() async {
     if (!canSave) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('region_do', selectedProvince!);
-    await prefs.setString('region_sigungu', selectedCity!);
-    await prefs.setString('region_eupmyeondong', selectedTown!);
-    await prefs.setBool('region_set', true);
+    // ✅ 로그인 유저 확인
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인 상태가 아니야. 다시 로그인해줘.')),
+      );
+      return;
+    }
 
-    if (!mounted) return;
-    Navigator.pop(context, true); // 저장 성공
+    try {
+      // ✅ Firestore 저장 (업서트)
+      final doc = FirebaseFirestore.instance.collection('users').doc(uid);
+      final fullRegion = '${selectedProvince!} ${selectedCity!} ${selectedTown!}'.trim();
+
+      await doc.set({
+        'region_province': selectedProvince,   // 도
+        'region_city': selectedCity,           // 시/군/구
+        'region_distract': selectedTown,       // 읍/면/동 (키 이름 네가 쓰던 그대로)
+        'region': fullRegion,                  // 전체 문자열
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // ✅ 로컬에도 유지 (네 기존 로직)
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('region_do', selectedProvince!);
+      await prefs.setString('region_sigungu', selectedCity!);
+      await prefs.setString('region_eupmyeondong', selectedTown!);
+      await prefs.setBool('region_set', true);
+
+      if (!mounted) return;
+      Navigator.pop(context, true); // 저장 성공
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('지역 저장 실패: $e')),
+      );
+    }
   }
 
   @override

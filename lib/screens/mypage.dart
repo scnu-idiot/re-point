@@ -13,7 +13,7 @@ import 'terms_of_service_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'location_terms_screen.dart';
 import 'app_version_screen.dart';
-import '../services/region_setting_screen.dart';
+import 'region_setting_screen.dart';
 
 class MyPageScreen extends StatefulWidget {
   final String nickname;

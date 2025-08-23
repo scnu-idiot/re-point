@@ -6,12 +6,21 @@ import 'package:google_sign_in/google_sign_in.dart';
 class GoogleLoginService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
-  static final GoogleSignIn _google = GoogleSignIn();
+  static final GoogleSignIn _google = GoogleSignIn(
+    // 필요하면 scopes 추가 가능
+    // scopes: ['email'],
+  );
 
-  /// 로그인 진행 후 users 컬렉션 upsert
-  /// 성공 시 true, 취소/실패 시 false
-  static Future<bool> login() async {
+  /// forceAccountSelection: true면 기존 세션/캐시를 끊고 계정 선택 팝업을 강제로 띄움
+  static Future<bool> login({bool forceAccountSelection = false}) async {
     try {
+      if (forceAccountSelection) {
+        // 기존 구글 세션/캐시 완전히 끊기
+        try { await _google.disconnect(); } catch (_) {}
+        try { await _google.signOut(); } catch (_) {}
+        try { await _auth.signOut(); } catch (_) {}
+      }
+
       // 1) 구글 계정 선택 (사용자가 취소하면 null)
       final googleUser = await _google.signIn();
       if (googleUser == null) return false;
@@ -43,7 +52,7 @@ class GoogleLoginService {
         'profile_url': user.photoURL,
         'region': null,
         'region_city': null,
-        'region_distract': null,   // 네가 지정한 키 그대로 사용
+        'region_distract': null, // 네가 쓰던 키 그대로 유지
         'region_province': null,
         'updated_at': nowServer,
       };
@@ -63,23 +72,19 @@ class GoogleLoginService {
       }
 
       return true;
-    } on FirebaseAuthException catch (e) {
-      // DEVELOPER_ERROR(10) 등은 보통 Android SHA-1/256 미등록 이슈
-      // 필요시 e.code 로그로 분기 처리 가능
+    } on FirebaseAuthException catch (_) {
       return false;
     } catch (_) {
       return false;
     }
   }
 
-  /// 로그아웃 (구글/파이어베이스 모두)
+  /// 로그아웃 (계정 연결 해제까지 확실히)
   static Future<void> logout() async {
-    try {
-      await _google.signOut();
-    } catch (_) {}
+    try { await _google.disconnect(); } catch (_) {}
+    try { await _google.signOut(); } catch (_) {}
     await _auth.signOut();
   }
 
-  /// 현재 로그인한 UID (없으면 null)
   static String? get currentUid => _auth.currentUser?.uid;
 }
