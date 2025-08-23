@@ -273,7 +273,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 12),
-
             // 아래 두 메뉴
             Row(
               children: [

@@ -20,7 +20,6 @@ class GoogleLoginService {
         try { await _google.signOut(); } catch (_) {}
         try { await _auth.signOut(); } catch (_) {}
       }
-
       // 1) 구글 계정 선택 (사용자가 취소하면 null)
       final googleUser = await _google.signIn();
       if (googleUser == null) return false;

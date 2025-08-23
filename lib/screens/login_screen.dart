@@ -180,7 +180,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 12),
 
                   // 구글 로그인 버튼
