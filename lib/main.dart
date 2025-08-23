@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
-import 'screens/splash_screen.dart'; // 스플래시 화면
 
+import 'firebase_options.dart';        // flutterfire configure가 생성
+import 'screens/splash_screen.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Kakao SDK 초기화 - 반드시 runApp 전에!
-  KakaoSdk.init(nativeAppKey: 'dd00c30573b12a8a81cd65b526943c99'); // 초기화 직접 추가
+  // ✅ Kakao 먼저 초기화
+  KakaoSdk.init(nativeAppKey: 'dd00c30573b12a8a81cd65b526943c99');
+
+  // ✅ Firebase 초기화 (각 플랫폼 옵션 적용)
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   runApp(const MyApp());
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -22,10 +28,10 @@ class MyApp extends StatelessWidget {
       title: 'RE:POINT',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        fontFamily: 'Pretendard', // 선택사항
+        fontFamily: 'Pretendard',
       ),
       debugShowCheckedModeBanner: false,
-      home: const SplashScreen(), // 첫 화면: 스플래시
+      home: const SplashScreen(),
     );
   }
 }

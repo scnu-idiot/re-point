@@ -6,15 +6,20 @@ import '../services/google_login_service.dart';
 import 'home_screen.dart';
 import '../services/region_setting_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
-  // 로그인 이후 공통 분기: 지역 설정 여부 확인 → 미설정 시 지역 설정 화면으로
-  Future<void> _routeAfterLogin(BuildContext context) async {
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool _loading = false;
+
+  Future<void> _routeAfterLogin() async {
     final prefs = await SharedPreferences.getInstance();
     final regionSet = prefs.getBool('region_set') ?? false;
-
-    if (!context.mounted) return;
+    if (!mounted) return;
 
     if (regionSet) {
       Navigator.pushReplacement(
@@ -28,7 +33,7 @@ class LoginScreen extends StatelessWidget {
           builder: (_) => const RegionSettingScreen(forceMode: true),
         ),
       );
-      if (saved == true && context.mounted) {
+      if (saved == true && mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -37,36 +42,53 @@ class LoginScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _loginKakao(BuildContext context) async {
-    final ok = await KakaoLoginService.login();
-    if (ok && context.mounted) {
-      // 어떤 로그인으로 들어왔는지 저장
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_provider', 'kakao');
-
-      await _routeAfterLogin(context);
-    } else {
-      if (context.mounted) {
+  Future<void> _loginKakao() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      final ok = await KakaoLoginService.login(); // ✅ 서비스 내부에서 users upsert 수행
+      if (!mounted) return;
+      if (ok) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth_provider', 'kakao');
+        await _routeAfterLogin();
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('카카오 로그인 실패')),
         );
       }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('카카오 로그인 오류: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _loginGoogle(BuildContext context) async {
-    final ok = await GoogleLoginService.login();
-    if (ok && context.mounted) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_provider', 'google');
-
-      await _routeAfterLogin(context);
-    } else {
-      if (context.mounted) {
+  Future<void> _loginGoogle() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      final ok = await GoogleLoginService.login(); // ✅ 서비스 내부에서 users upsert 수행
+      if (!mounted) return;
+      if (ok) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth_provider', 'google');
+        await _routeAfterLogin();
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('구글 로그인 실패')),
         );
       }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('구글 로그인 오류: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -78,46 +100,67 @@ class LoginScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // 앱 로고
-              Image.asset('assets/images/splashscreen.png', width: 180),
-              const SizedBox(height: 60),
+        child: Stack(
+          children: [
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset('assets/images/splashscreen.png', width: 180),
+                  const SizedBox(height: 60),
 
-              // 카카오 로그인 (이미지 버튼)
-              GestureDetector(
-                onTap: () => _loginKakao(context),
-                child: SizedBox(
-                  width: btnWidth,
-                  height: btnHeight,
-                  child: Image.asset(
-                    'assets/images/kakao_icon.png',
-                    fit: BoxFit.cover,
+                  // 카카오 로그인 버튼
+                  SizedBox(
+                    width: btnWidth,
+                    height: btnHeight,
+                    child: InkWell(
+                      onTap: _loading ? null : _loginKakao,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Ink(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          image: const DecorationImage(
+                            image: AssetImage('assets/images/kakao_icon.png'),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
+
+                  const SizedBox(height: 12),
+
+                  // 구글 로그인 버튼
+                  SizedBox(
+                    width: btnWidth,
+                    height: btnHeight,
+                    child: InkWell(
+                      onTap: _loading ? null : _loginGoogle,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Ink(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          image: const DecorationImage(
+                            image: AssetImage('assets/images/google_logo.png'),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 로딩 오버레이
+            if (_loading)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withOpacity(0.2),
+                  child: const Center(child: CircularProgressIndicator()),
                 ),
               ),
-
-              const SizedBox(height: 12),
-
-              // 구글 로그인 (이미지 버튼) - 카카오와 동일 크기
-              GestureDetector(
-                onTap: () => _loginGoogle(context),
-                child: SizedBox(
-                  width: btnWidth,
-                  height: btnHeight,
-                  child: Image.asset(
-                    // ⚠️ 300x45 크기의 버튼 이미지 준비 권장
-                    // 예) 'assets/images/google_signin_button.png'
-                    // 현재 google_logo.png 가 단일 아이콘이면, 버튼 배경으로 보이도록 별도 버튼 이미지를 쓰는 게 좋습니다.
-                    'assets/images/google_logo.png',
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
