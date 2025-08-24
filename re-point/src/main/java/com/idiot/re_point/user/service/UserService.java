@@ -111,4 +111,5 @@ public class UserService {
         doc.set(patch, SetOptions.merge()).get();
         return getByUid(uid);
     }
+
 }

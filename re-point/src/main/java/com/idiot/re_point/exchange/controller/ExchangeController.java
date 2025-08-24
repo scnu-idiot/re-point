@@ -1,7 +1,7 @@
 package com.idiot.re_point.exchange.controller;
 
-import com.idiot.re_point.exchange.dto.ExchangeRequest;
-import com.idiot.re_point.exchange.dto.ExchangeResponse;
+import com.idiot.re_point.exchange.dto.RedeemRequest;
+import com.idiot.re_point.exchange.dto.RedeemResponse;
 import com.idiot.re_point.exchange.service.ExchangeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,12 +16,11 @@ public class ExchangeController {
 
     private final ExchangeService exchangeService;
 
-    @PostMapping("/{uid}")
-    public ResponseEntity<ExchangeResponse> exchange(
-            @PathVariable String uid,
-            @RequestBody ExchangeRequest req
-    ) throws ExecutionException, InterruptedException {
-        ExchangeResponse res = exchangeService.exchangeGiftcard(uid, req.getCardId());
+    @PostMapping("/redeem/{uid}")
+    public ResponseEntity<RedeemResponse> redeem(@PathVariable String uid,
+                                                 @RequestBody RedeemRequest req)
+            throws ExecutionException, InterruptedException {
+        RedeemResponse res = exchangeService.redeem(uid, req.getCardId());
         return ResponseEntity.ok(res);
     }
 }

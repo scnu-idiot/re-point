@@ -2,11 +2,11 @@ package com.idiot.re_point.exchange.service;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.*;
-import com.idiot.re_point.exchange.dto.ExchangeResponse;
+import com.idiot.re_point.exchange.dto.RedeemResponse;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.stereotype.Service;
 
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,77 +17,101 @@ import java.util.concurrent.ExecutionException;
 public class ExchangeService {
 
     private final Firestore firestore;
-    private static final SecureRandom RND = new SecureRandom();
 
-    private static String randomCode() {
-        // 간단한 10자리 코드 예: AB12-3CD4E
-        String alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < 10; i++) sb.append(alphabet.charAt(RND.nextInt(alphabet.length())));
-        sb.insert(4, '-');
-        return sb.toString();
-    }
+    private CollectionReference users()     { return firestore.collection("users"); }
+    private CollectionReference giftcards() { return firestore.collection("giftcards"); }
+    private CollectionReference exchanges() { return firestore.collection("exchanges"); }
+    private CollectionReference points()    { return firestore.collection("points"); }
 
-    public ExchangeResponse exchangeGiftcard(String uid, String cardId)
+    /**
+     * 상품권 교환
+     * - giftcards/{cardId} 확인 (active && stock>0)
+     * - users/{uid}.point 확인 (>= card_value)
+     * - 트랜잭션:
+     *    * 유저 포인트 차감
+     *    * giftcard 재고 -1
+     *    * exchanges 문서 생성 (코드 발급)
+     *    * points 히스토리(spend) 문서 생성
+     */
+    public RedeemResponse redeem(String uid, String cardId)
             throws ExecutionException, InterruptedException {
 
-        DocumentReference userRef = firestore.collection("users").document(uid);
-        DocumentReference cardRef = firestore.collection("giftcards").document(cardId);
-        CollectionReference exchangesCol = firestore.collection("exchanges");
-
-        // 카드 존재/금액 확인
-        DocumentSnapshot cardSnap = cardRef.get().get();
-        if (!cardSnap.exists()) {
-            throw new IllegalArgumentException("Giftcard not found: " + cardId);
-        }
-        Number cardValueNum = (Number) cardSnap.get("card_value");
-        long pointsToUse = cardValueNum == null ? 0L : cardValueNum.longValue();
-        if (pointsToUse <= 0) throw new IllegalStateException("Invalid card value.");
-
-        // 트랜잭션: 포인트 차감 + 교환문서 생성
         return firestore.runTransaction(tx -> {
-            // 1) 유저 조회
-            DocumentSnapshot userSnap = tx.get(userRef).get();
-            if (!userSnap.exists()) throw new IllegalStateException("User not found: " + uid);
+            DocumentReference userDoc = users().document(uid);
+            DocumentSnapshot  userSnap = tx.get(userDoc).get();
+            if (!userSnap.exists()) throw new RuntimeException("User not found: " + uid);
 
-            Number curPointNum = (Number) userSnap.get("point");
-            long curPoint = curPointNum == null ? 0L : curPointNum.longValue();
+            Long userPoint = userSnap.getLong("point");
+            if (userPoint == null) userPoint = 0L;
 
-            if (curPoint < pointsToUse) {
-                throw new IllegalStateException("Not enough points. balance=" + curPoint);
-            }
+            DocumentReference cardDoc = giftcards().document(cardId);
+            DocumentSnapshot  cardSnap = tx.get(cardDoc).get();
+            if (!cardSnap.exists()) throw new RuntimeException("Giftcard not found: " + cardId);
 
-            // 2) 차감 후 잔액
-            long newBalance = curPoint - pointsToUse;
+            Boolean active = cardSnap.getBoolean("active");
+            Long stock     = cardSnap.getLong("stock");
+            Long cardValue = cardSnap.getLong("card_value");
+            String cardName= cardSnap.getString("card_name");
 
-            // 3) 코드 생성
-            String code = randomCode();
+            if (active == null || !active) throw new RuntimeException("Giftcard inactive: " + cardId);
+            if (stock == null || stock <= 0) throw new RuntimeException("Giftcard out of stock: " + cardId);
+            if (cardValue == null || cardValue <= 0) throw new RuntimeException("Invalid card_value");
 
-            // 4) exchanges 문서 생성
-            Map<String, Object> exch = new HashMap<>();
-            exch.put("user_id", uid);
-            exch.put("card_id", cardId);
-            exch.put("points_used", pointsToUse);
-            exch.put("status", "COMPLETED");
-            exch.put("exchange_date", Timestamp.ofTimeSecondsAndNanos(
-                    Instant.now().getEpochSecond(), Instant.now().getNano()));
+            if (userPoint < cardValue) throw new RuntimeException("Not enough points");
 
+            long balanceAfter = userPoint - cardValue;
+
+            // 1) 유저 포인트 차감
+            tx.update(userDoc, "point", balanceAfter, "updated_at", Timestamp.now());
+
+            // 2) 기프트카드 재고 -1
+            tx.update(cardDoc, "stock", stock - 1);
+
+            // 3) 교환 문서 생성
+            String code = makeGiftCode();
+            Map<String, Object> ex = new HashMap<>();
+            ex.put("user_id", uid);
+            ex.put("card_id", cardId);
+            ex.put("points_used", cardValue);
+            ex.put("status", "COMPLETED");
+            ex.put("exchange_date", Timestamp.now());
             Map<String, Object> delivery = new HashMap<>();
             delivery.put("code", code);
-            delivery.put("received", "COMPLETED"); // 코드형 상품권이라 즉시 수령 처리
-            exch.put("delivery_info", delivery);
+            delivery.put("received", "COMPLETED");
+            ex.put("delivery_info", delivery);
+            ex.put("card_name", cardName);
+            ex.put("card_value", cardValue);
 
-            DocumentReference newExRef = exchangesCol.document(); // auto id
-            tx.set(newExRef, exch, SetOptions.merge());
+            DocumentReference exDoc = exchanges().document();
+            tx.set(exDoc, ex);
 
-            // 5) 유저 포인트 차감
-            Map<String, Object> patch = new HashMap<>();
-            patch.put("point", newBalance);
-            patch.put("updated_at", Timestamp.ofTimeSecondsAndNanos(
-                    Instant.now().getEpochSecond(), Instant.now().getNano()));
-            tx.update(userRef, patch);
+            // 4) 포인트 히스토리(spend)
+            Map<String, Object> ph = new HashMap<>();
+            ph.put("uid", uid);
+            ph.put("type", "spend");
+            ph.put("title", "상품권 교환");
+            ph.put("detail", cardName == null ? cardId : cardName);
+            ph.put("amount", -cardValue);
+            ph.put("balance_after", balanceAfter);
+            ph.put("created_at", Timestamp.now());
+            ph.put("card_id", cardId);
 
-            return new ExchangeResponse(newExRef.getId(), code, pointsToUse, newBalance, "COMPLETED");
+            DocumentReference phDoc = points().document();
+            tx.set(phDoc, ph);
+
+            return RedeemResponse.builder()
+                    .exchangeId(exDoc.getId())
+                    .code(code)
+                    .pointsUsed(cardValue)
+                    .balanceAfter(balanceAfter)
+                    .build();
         }).get();
+    }
+
+    private String makeGiftCode() {
+        // 대문자/숫자 4-4-4 형태 예: 9K2F-ABCD-7M3Q
+        return RandomStringUtils.randomAlphanumeric(4).toUpperCase() + "-" +
+                RandomStringUtils.randomAlphanumeric(4).toUpperCase() + "-" +
+                RandomStringUtils.randomAlphanumeric(4).toUpperCase();
     }
 }
