@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+
 // screens
 import 'history_screen.dart';
 import 'notice_screen.dart';
@@ -14,6 +15,7 @@ import 'privacy_policy_screen.dart';
 import 'location_terms_screen.dart';
 import 'app_version_screen.dart';
 import 'region_setting_screen.dart';
+import '../services/api_client.dart';
 
 class MyPageScreen extends StatefulWidget {
   final String nickname;
@@ -57,6 +59,21 @@ class _MyPageScreenState extends State<MyPageScreen> {
     super.initState();
     _loadKakaoProfile();
     _loadRegion();
+    _loadPoints();
+  }
+
+  Future<void> _loadPoints() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final uid = prefs.getString('userId'); // 로그인 시 저장한 값
+      if (uid == null || uid.isEmpty) return;
+
+      final balance = await ApiClient.fetchUserPoint(uid);
+      if (!mounted) return;
+      setState(() => points = balance);
+    } catch (e) {
+      debugPrint('포인트 불러오기 실패: $e');
+    }
   }
 
   Future<void> _loadKakaoProfile() async {

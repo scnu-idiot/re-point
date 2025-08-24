@@ -6,6 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../services/api_client.dart';
+
+
 // 로그인 화면
 import 'login_screen.dart';
 
@@ -48,9 +51,19 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
     await prefs.clear();
   }
 
+  Future<void> _deleteOnServer() async {
+    final prefs = await SharedPreferences.getInstance();
+    final uid = prefs.getString('userId'); // Kakao/Google 로그인 시 저장했던 키
+    if (uid == null || uid.isEmpty) {
+      throw Exception('UID가 없습니다. (userId 미저장)');
+    }
+    await ApiClient.deleteUser(uid);
+  }
+
   Future<void> _doDeleteAccount() async {
     setState(() => _busy = true);
     try {
+      await _deleteOnServer();
       await _revokeSocialAccounts();
       await _clearLocalSession();
 

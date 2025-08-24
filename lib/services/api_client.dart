@@ -7,6 +7,8 @@ class ApiClient {
   ApiClient._();
   static final ApiClient instance = ApiClient._();
   final http.Client _client = http.Client();
+  static String? _authToken;
+  static void setAuthToken(String? t) => _authToken = t;
   // 백엔드 주소
   // •	Android 에뮬레이터 → http://10.0.2.2:8080
   // •	iOS 시뮬레이터 → http://localhost:8080
@@ -15,6 +17,21 @@ class ApiClient {
   static Map<String, String> get _jsonHeaders => {
     'Content-Type': 'application/json',
   };
+  static Future<Map<String, dynamic>> googleLoginByIdToken({
+    required String idToken,
+    String address = '',
+  }) async {
+    final url = Uri.parse('$baseUrl/api/auth/google/login');
+    final res = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'idToken': idToken, 'address': address}),
+    );
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    }
+    throw Exception('googleLogin failed: ${res.statusCode} ${res.body}');
+  }
 
   // -----------------------------
   // Auth: 서버에 사용자 upsert (회원가입/로그인 동기화)
@@ -100,6 +117,23 @@ class ApiClient {
     if (res.statusCode != 200) {
       throw Exception('upsertUser failed: ${res.statusCode} ${res.body}');
     }
+  }
+
+  static Future<void> deleteUser(String uid) async {
+    final url = Uri.parse('$baseUrl/api/users/$uid');
+    final res = await http.delete(url);
+    if (res.statusCode != 204 && res.statusCode != 200) {
+      throw Exception('deleteUser failed: ${res.statusCode} ${res.body}');
+    }
+  }
+  /// 현재 사용자 포인트만 정수로 반환
+  static Future<int> fetchUserPoint(String uid) async {
+    final m = await getUser(uid); // GET /api/users/{uid}
+    if (m == null) return 0;
+
+    // 서버/파이어스토어 어떤 키를 쓰든 안전하게 캐치
+    final v = m['point'] ?? m['balance'] ?? 0;
+    return (v as num).toInt();
   }
 
   /// 영수증 적립 (고정 100)

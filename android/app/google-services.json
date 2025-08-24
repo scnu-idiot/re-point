@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "132968321662-a2if31b7utrga1go0857uv0gvuu0eerg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.repoint",
+            "certificate_hash": "6a2e58f88f85283d72c897a29c4fe5950ad094b3"
+          }
+        },
+        {
           "client_id": "132968321662-cctko1fn0eeulbgc0tub7a36l41ljbfv.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -43,8 +51,15 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "132968321662-n21svisgpp4b9n23pufgiepk2itr3ubj.apps.googleusercontent.com",
+              "client_id": "132968321662-fg6rju0i89qva47jggm04bguc1i1igk4.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "132968321662-ddc8n0j7fgfd948seeuoj2frvquefn2f.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.repoint"
+              }
             }
           ]
         }

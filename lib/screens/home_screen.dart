@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // 🔽 화면 import
 import 'notification_screen.dart';
@@ -12,6 +13,7 @@ import 'chatbot_screen.dart';
 import 'mypage.dart';
 import '../widgets/event_card.dart';
 import '../widgets/side_menu.dart';
+import '../services/api_client.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,12 +28,27 @@ class _HomeScreenState extends State<HomeScreen> {
   String? profileImageUrl;
 
   // ✅ 포인트(나중에 DB 연동 예정)
-  int userPoints = 5000; // 화면 확인용 더미 값
+  int points = 0; // 화면 확인용 더미 값
 
   @override
   void initState() {
     super.initState();
     loadUser();
+    _loadPoints();
+  }
+
+  Future<void> _loadPoints() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final uid = prefs.getString('userId'); // 로그인 시 저장한 값
+      if (uid == null || uid.isEmpty) return;
+
+      final balance = await ApiClient.fetchUserPoint(uid);
+      if (!mounted) return;
+      setState(() => points = balance);
+    } catch (e) {
+      debugPrint('포인트 불러오기 실패: $e');
+    }
   }
 
   Future<void> loadUser() async {
@@ -185,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         Text(
-                          '${_formatPoints(userPoints)} point',
+                          '${_formatPoints(points)} point',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,

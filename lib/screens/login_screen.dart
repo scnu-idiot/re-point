@@ -1,20 +1,24 @@
+// lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/kakao_login_service.dart';
 import '../services/google_login_service.dart';
 import 'home_screen.dart';
-import '../services/region_setting_screen.dart';
+import 'region_setting_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
 
-  // 로그인 이후 공통 분기: 지역 설정 여부 확인 → 미설정 시 지역 설정 화면으로
-  Future<void> _routeAfterLogin(BuildContext context) async {
+class _LoginScreenState extends State<LoginScreen> {
+  Future<void> _routeAfterLogin() async {
     final prefs = await SharedPreferences.getInstance();
     final regionSet = prefs.getBool('region_set') ?? false;
 
-    if (!context.mounted) return;
+    if (!mounted) return;
 
     if (regionSet) {
       Navigator.pushReplacement(
@@ -28,7 +32,8 @@ class LoginScreen extends StatelessWidget {
           builder: (_) => const RegionSettingScreen(forceMode: true),
         ),
       );
-      if (saved == true && context.mounted) {
+      if (!mounted) return;
+      if (saved == true) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -37,38 +42,35 @@ class LoginScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _loginKakao(BuildContext context) async {
+
+  Future<void> _loginKakao() async {
     final ok = await KakaoLoginService.login();
-    if (ok && context.mounted) {
-      // 어떤 로그인으로 들어왔는지 저장
+    if (!mounted) return;
+    if (ok) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_provider', 'kakao');
-
-      await _routeAfterLogin(context);
+      await _routeAfterLogin();
     } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('카카오 로그인 실패')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('카카오 로그인 실패')),
+      );
     }
   }
 
-  Future<void> _loginGoogle(BuildContext context) async {
+  Future<void> _loginGoogle() async {
     final ok = await GoogleLoginService.login();
-    if (ok && context.mounted) {
+    if (!mounted) return;
+    if (ok) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_provider', 'google');
-
-      await _routeAfterLogin(context);
+      await _routeAfterLogin();
     } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('구글 로그인 실패')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('구글 로그인 실패')),
+      );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -82,38 +84,24 @@ class LoginScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // 앱 로고
               Image.asset('assets/images/splashscreen.png', width: 180),
               const SizedBox(height: 60),
 
-              // 카카오 로그인 (이미지 버튼)
               GestureDetector(
-                onTap: () => _loginKakao(context),
+                onTap: _loginKakao,
                 child: SizedBox(
                   width: btnWidth,
                   height: btnHeight,
-                  child: Image.asset(
-                    'assets/images/kakao_icon.png',
-                    fit: BoxFit.cover,
-                  ),
+                  child: Image.asset('assets/images/kakao_icon.png', fit: BoxFit.cover),
                 ),
               ),
-
               const SizedBox(height: 12),
-
-              // 구글 로그인 (이미지 버튼) - 카카오와 동일 크기
               GestureDetector(
-                onTap: () => _loginGoogle(context),
+                onTap: _loginGoogle,
                 child: SizedBox(
                   width: btnWidth,
                   height: btnHeight,
-                  child: Image.asset(
-                    // ⚠️ 300x45 크기의 버튼 이미지 준비 권장
-                    // 예) 'assets/images/google_signin_button.png'
-                    // 현재 google_logo.png 가 단일 아이콘이면, 버튼 배경으로 보이도록 별도 버튼 이미지를 쓰는 게 좋습니다.
-                    'assets/images/google_logo.png',
-                    fit: BoxFit.cover,
-                  ),
+                  child: Image.asset('assets/images/google_logo.png', fit: BoxFit.cover),
                 ),
               ),
             ],

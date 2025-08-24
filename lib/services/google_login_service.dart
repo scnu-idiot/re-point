@@ -1,89 +1,63 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+// lib/services/google_login_service.dart
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'api_client.dart';
 
-/// Google 로그인 + Firestore users 업서트
 class GoogleLoginService {
-  static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final FirebaseFirestore _db = FirebaseFirestore.instance;
-  static final GoogleSignIn _google = GoogleSignIn(
-    // 필요하면 scopes 추가 가능
-    // scopes: ['email'],
-  );
+  // 반드시 "웹 클라이언트 ID"로 교체하세요.
+  static const String kWebClientId = '132968321662-fg6rju0i89qva47jggm04bguc1i1igk4.apps.googleusercontent.com';
 
-  /// forceAccountSelection: true면 기존 세션/캐시를 끊고 계정 선택 팝업을 강제로 띄움
-  static Future<bool> login({bool forceAccountSelection = false}) async {
+  /// 실제 로그인 + 백엔드 검증 + Firestore upsert 까지 수행
+  static Future<Map<String, dynamic>> signInViaBackend({String address = ''}) async {
+    final g = GoogleSignIn(
+      scopes: const ['email', 'profile'],
+      serverClientId: kWebClientId, // <- idToken aud가 웹클라ID로 나오도록 필수
+    );
+
+    final user = await g.signIn();
+    if (user == null) throw Exception('사용자가 로그인 취소');
+
+    final auth = await user.authentication;
+    final idToken = auth.idToken;
+    if (idToken == null || idToken.isEmpty) {
+      throw Exception('idToken을 가져오지 못했습니다');
+    }
+
+    // 백엔드로 전송 → 검증 + Firestore upsert
+    final saved = await ApiClient.googleLoginByIdToken(
+      idToken: idToken,
+      address: address,
+    );
+
+    // 로컬 세션 저장 (카카오와 동일 키)
+    final prefs = await SharedPreferences.getInstance();
+    final uid = (saved['uid'] as String?) ?? '';
+    await prefs.setString('userId', uid);
+    await prefs.setString('loginProvider', 'google');
+
+    // (선택) 백엔드가 지역을 돌려주면 region_set 플래그도 설정
+    final hasRegion = (saved['regionProvince'] ?? '').toString().isNotEmpty;
+    await prefs.setBool('region_set', hasRegion);
+
+    return saved;
+  }
+
+  /// LoginScreen에서 쓰기 좋은 래퍼: 성공/실패만 반환
+  static Future<bool> login({String address = ''}) async {
     try {
-      if (forceAccountSelection) {
-        // 기존 구글 세션/캐시 완전히 끊기
-        try { await _google.disconnect(); } catch (_) {}
-        try { await _google.signOut(); } catch (_) {}
-        try { await _auth.signOut(); } catch (_) {}
-      }
-      // 1) 구글 계정 선택 (사용자가 취소하면 null)
-      final googleUser = await _google.signIn();
-      if (googleUser == null) return false;
-
-      final googleAuth = await googleUser.authentication;
-
-      // 2) Firebase Auth 로그인
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-      final userCred = await _auth.signInWithCredential(credential);
-      final user = userCred.user;
-      if (user == null) return false;
-
-      // 3) Firestore users 업서트
-      final docRef = _db.collection('users').doc(user.uid);
-      final snap = await docRef.get();
-
-      final nowServer = FieldValue.serverTimestamp();
-      final dataCreate = {
-        'address': null,
-        'created_at': nowServer,
-        'email': user.email,
-        'kakao_id': null,
-        'login_provider': 'google',
-        'name': user.displayName,
-        'point': 0,
-        'profile_url': user.photoURL,
-        'region': null,
-        'region_city': null,
-        'region_distract': null, // 네가 쓰던 키 그대로 유지
-        'region_province': null,
-        'updated_at': nowServer,
-      };
-
-      final dataUpdate = {
-        if (user.email != null) 'email': user.email,
-        'login_provider': 'google',
-        if (user.displayName != null) 'name': user.displayName,
-        'profile_url': user.photoURL,
-        'updated_at': nowServer,
-      };
-
-      if (!snap.exists) {
-        await docRef.set(dataCreate, SetOptions(merge: true));
-      } else {
-        await docRef.set(dataUpdate, SetOptions(merge: true));
-      }
-
+      await signInViaBackend(address: address);
       return true;
-    } on FirebaseAuthException catch (_) {
-      return false;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('Google login failed: $e\n$st');
       return false;
     }
   }
 
-  /// 로그아웃 (계정 연결 해제까지 확실히)
+  /// 구글 로그아웃 + 로컬 세션 삭제
   static Future<void> logout() async {
-    try { await _google.disconnect(); } catch (_) {}
-    try { await _google.signOut(); } catch (_) {}
-    await _auth.signOut();
+    try { await GoogleSignIn().signOut(); } catch (_) {}
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
   }
-
-  static String? get currentUid => _auth.currentUser?.uid;
 }
