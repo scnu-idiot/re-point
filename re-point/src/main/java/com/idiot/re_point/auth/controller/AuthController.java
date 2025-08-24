@@ -1,9 +1,12 @@
 package com.idiot.re_point.auth.controller;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.idiot.re_point.auth.dto.AuthLoginRequest;
 import com.idiot.re_point.auth.dto.KakaoLoginTokenRequest;
 import com.idiot.re_point.auth.dto.KakaoMeResponse;
+import com.idiot.re_point.auth.dto.GoogleLoginRequest;
 import com.idiot.re_point.auth.service.KakaoAuthService;
+import com.idiot.re_point.auth.service.GoogleAuthService;
 import com.idiot.re_point.user.dto.UserDto;
 import com.idiot.re_point.user.model.User;
 import com.idiot.re_point.user.service.UserService;
@@ -25,6 +28,7 @@ public class AuthController {
 
     private final UserService userService;
     private final KakaoAuthService kakaoAuthService;
+    private final GoogleAuthService googleAuthService;
 
     /**
      * (기존) 프론트가 검증을 마친 사용자 정보를 받아 upsert
@@ -49,6 +53,7 @@ public class AuthController {
         User saved = userService.getByUid(uid);
         return ResponseEntity.ok(UserDto.from(saved));
     }
+
 
     /**
      * (추가) 카카오 access_token 검증 → 카카오 프로필 조회 → Firestore upsert
@@ -89,6 +94,42 @@ public class AuthController {
 
         // 4) 저장 & 반환 (createdAt/updatedAt은 서비스에서 처리)
         userService.upsert(uid, u);
+        User saved = userService.getByUid(uid);
+        return ResponseEntity.ok(UserDto.from(saved));
+    }
+    @PostMapping("/google/login")
+    public ResponseEntity<?> googleLogin(@RequestBody GoogleLoginRequest body)
+            throws Exception {
+
+        if (body == null || body.getIdToken() == null || body.getIdToken().isBlank()) {
+            return ResponseEntity.badRequest().body("{\"error\":\"idToken_required\"}");
+        }
+
+        var idToken = googleAuthService.verify(body.getIdToken());
+        if (idToken == null) {
+            return ResponseEntity.status(401).body("{\"error\":\"invalid_google_token\"}");
+        }
+
+        var payload = idToken.getPayload();
+        String sub    = payload.getSubject();                           // 고유 식별자
+        String email  = (String) payload.get("email");
+        String name   = (String) payload.get("name");
+        String photo  = (String) payload.get("picture");
+
+        // 🔐 UID 정책: 카카오와 충돌 방지용으로 prefix 권장
+        String uid = "google:" + sub;
+
+        User u = User.builder()
+                .uid(uid)
+                .name(name == null ? "" : name)
+                .email(email == null ? "" : email)
+                .profileUrl(photo == null ? "" : photo)
+                .address(body.getAddress() == null ? "" : body.getAddress())
+                .loginProvider("google")
+                .point(0L)
+                .build();
+
+        userService.upsert(uid, u);            // Firestore Admin SDK로 upsert (기존 로직 재사용)
         User saved = userService.getByUid(uid);
         return ResponseEntity.ok(UserDto.from(saved));
     }

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 @Service
@@ -82,25 +83,61 @@ public class UserService {
         }
     }
 
-    public void delete(String uid) throws ExecutionException, InterruptedException {
-        DocumentReference doc = usersCol().document(uid);
-        DocumentSnapshot snap = doc.get().get();
-        if (!snap.exists()) throw new RuntimeException("User not found: " + uid);
-        doc.delete().get();
+    public void deleteUserAndRelated(String uid) throws ExecutionException, InterruptedException {
+        // 1) users/{uid} 삭제
+        DocumentReference userDoc = firestore.collection("users").document(uid);
+        userDoc.delete().get();
+
+        // 2) 연관 데이터 삭제 (스키마에 맞게 필요 컬렉션 추가)
+        deleteByQuery("points", "user_id", uid);     // 포인트 이력
+        deleteByQuery("exchanges", "user_id", uid);  // 교환 이력 (컬렉션명이 다르면 수정)
+        // deleteByQuery("giftcards", "owner_uid", uid); // 소유권 필드가 있다면 예시
+    }
+
+    private void deleteByQuery(String collection, String field, String uid)
+            throws ExecutionException, InterruptedException {
+
+        CollectionReference col = firestore.collection(collection);
+        Query q = col.whereEqualTo(field, uid).limit(500);
+
+        while (true) {
+            QuerySnapshot snap = q.get().get();
+            List<QueryDocumentSnapshot> docs = snap.getDocuments();
+            if (docs.isEmpty()) break;
+
+            WriteBatch batch = firestore.batch();
+            for (QueryDocumentSnapshot d : docs) {
+                batch.delete(d.getReference());
+            }
+            batch.commit().get();
+
+            // 페이지네이션 (커서)
+            DocumentSnapshot last = docs.get(docs.size() - 1);
+            q = col.whereEqualTo(field, uid)
+                    .startAfter(last)
+                    .limit(500);
+        }
     }
 
     /** 부분 업데이트 (null 인 필드는 무시) */
     public User updateUser(String uid, UpdateUserRequest req) throws ExecutionException, InterruptedException {
-        DocumentReference doc = usersCol().document(uid);
-        DocumentSnapshot cur = doc.get().get();
+        var doc = usersCol().document(uid);
+        var cur = doc.get().get();
+
+
 
         Map<String, Object> patch = new HashMap<>();
+        if (!cur.exists()) {
+            patch.put("point", req.getPoint() != null ? req.getPoint() : 0L);
+            patch.put("created_at", Timestamp.now());
+        }
+
+
         if (req.getName() != null)          patch.put("name", req.getName());
         if (req.getEmail() != null)         patch.put("email", req.getEmail());
         if (req.getProfileUrl() != null)    patch.put("profile_url", req.getProfileUrl());
         if (req.getAddress() != null)       patch.put("address", req.getAddress());
         if (req.getLoginProvider() != null) patch.put("login_provider", req.getLoginProvider());
-        if (req.getPoint() != null)         patch.put("point", req.getPoint());
 
         // 최초 생성 시 created_at 보정
         if (!cur.exists() || cur.get("created_at") == null) {

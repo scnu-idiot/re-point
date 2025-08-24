@@ -50,12 +50,12 @@ public class UserController {
     }
 
 
-    /** 사용자 삭제(회원 탈퇴) */
+    // UserController.java
     @DeleteMapping("/{uid}")
     public ResponseEntity<?> deleteUser(@PathVariable String uid)
             throws ExecutionException, InterruptedException {
-        userService.delete(uid);
-        return ResponseEntity.noContent().build();
+        userService.deleteUserAndRelated(uid);
+        return ResponseEntity.noContent().build(); // 204
     }
 
     /** 사용자 프로필 부분 업데이트 */
