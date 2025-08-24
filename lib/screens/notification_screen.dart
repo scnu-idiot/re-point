@@ -1,6 +1,6 @@
-// lib/screens/notification_screen.dart
 import 'package:flutter/material.dart';
-import '../data/history_data.dart'; // HistoryRecord, HistoryKind, mergedHistoryLatestFirst
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_client.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -10,26 +10,120 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  // ✅ 이용내역에서 생성된 이벤트를 알림으로 재구성
-  late List<HistoryRecord> items;
+  String? _uid;
+  List<HistoryRecord> items = [];
 
-  bool loading = false;
+  bool loading = true;
   String? error;
 
   @override
   void initState() {
     super.initState();
-    // 공용 데이터 사용
-    items = mergedHistoryLatestFirst();
+    _loadUidAndNotifications();
+  }
+
+  Future<void> _loadUidAndNotifications() async {
+    final prefs = await SharedPreferences.getInstance();
+    _uid = prefs.getString('userId');
+    if (_uid != null) {
+      await _loadNotifications();
+    } else {
+      setState(() {
+        loading = false;
+        error = '사용자 정보를 불러올 수 없습니다.';
+      });
+    }
+  }
+
+  Future<void> _loadNotifications() async {
+    if (_uid == null) return;
+
+    setState(() {
+      loading = true;
+      error = null;
+    });
+
+    try {
+      final pointHistory = await ApiClient.fetchPointHistory(_uid!);
+      final giftCardTransactions = await ApiClient.fetchGiftCardTransactions(_uid!);
+
+      List<HistoryRecord> combinedList = [];
+
+      for (var e in pointHistory) {
+        combinedList.add(HistoryRecord(
+          title: e['title'] ?? '',
+          subtitle: e['detail'] ?? '',
+          timeAgo: _formatTimeAgo(e['created_at']),
+          kind: HistoryKind.reward,
+          timestamp: _getDateTimeFromTimestamp(e['created_at']),
+        ));
+      }
+
+      for (var e in giftCardTransactions) {
+        combinedList.add(HistoryRecord(
+          title: '${e['amount']}원 상품권 교환',
+          subtitle: '코드: ${e['code']}',
+          timeAgo: _formatTimeAgo(e['issued_at']),
+          kind: HistoryKind.purchase,
+          timestamp: _getDateTimeFromTimestamp(e['issued_at']),
+        ));
+      }
+
+      // Sort by timestamp, latest first
+      combinedList.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+      if (mounted) {
+        setState(() {
+          items = combinedList;
+          loading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load notifications: $e');
+      if (mounted) {
+        setState(() {
+          loading = false;
+          error = '알림을 불러오는데 실패했습니다: ${e.toString()}';
+        });
+      }
+    }
+  }
+
+  String _formatTimeAgo(dynamic timestamp) {
+    if (timestamp == null) return '';
+    DateTime dateTime = _getDateTimeFromTimestamp(timestamp);
+    final Duration diff = DateTime.now().difference(dateTime);
+
+    if (diff.inDays > 365) {
+      return '${(diff.inDays / 365).floor()}년 전';
+    } else if (diff.inDays > 30) {
+      return '${(diff.inDays / 30).floor()}개월 전';
+    } else if (diff.inDays > 7) {
+      return '${(diff.inDays / 7).floor()}주 전';
+    } else if (diff.inDays > 0) {
+      return '${diff.inDays}일 전';
+    } else if (diff.inHours > 0) {
+      return '${diff.inHours}시간 전';
+    } else if (diff.inMinutes > 0) {
+      return '${diff.inMinutes}분 전';
+    } else {
+      return '방금 전';
+    }
+  }
+
+  DateTime _getDateTimeFromTimestamp(dynamic timestamp) {
+    if (timestamp is String) {
+      return DateTime.parse(timestamp);
+    } else if (timestamp is Map && timestamp.containsKey('_seconds')) {
+      return DateTime.fromMillisecondsSinceEpoch(timestamp['_seconds'] * 1000);
+    } else {
+      return DateTime.now(); // Fallback
+    }
   }
 
   // 🔄 당겨서 새로고침 (데모에선 UI만 갱신)
   Future<void> _onRefresh() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    if (!mounted) return;
-    setState(() {
-      items = mergedHistoryLatestFirst();
-    });
+    await _loadNotifications();
   }
 
   @override
@@ -152,4 +246,25 @@ class _ErrorView extends StatelessWidget {
       ),
     );
   }
+}
+
+enum HistoryKind {
+  purchase, // 구매
+  reward,   // 적립
+}
+
+class HistoryRecord {
+  final String title;
+  final String subtitle;
+  final String timeAgo;
+  final HistoryKind kind;
+  final DateTime timestamp;
+
+  const HistoryRecord({
+    required this.title,
+    required this.subtitle,
+    required this.timeAgo,
+    required this.kind,
+    required this.timestamp,
+  });
 }

@@ -1,8 +1,6 @@
-// lib/screens/history_screen.dart
 import 'package:flutter/material.dart';
-
-// ✅ 공유 더미 데이터
-import '../data/history_data.dart'; // HistoryRecord, HistoryKind, demoPurchases, demoRewards
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_client.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -15,17 +13,107 @@ class _HistoryScreenState extends State<HistoryScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
 
-  // ✅ 공유 데이터 사용
-  List<HistoryRecord> purchases = List.of(demoPurchases);
-  List<HistoryRecord> rewards = List.of(demoRewards);
+  String? _uid;
+  List<HistoryRecord> purchases = [];
+  List<HistoryRecord> rewards = [];
 
-  bool loading = false;
+  bool loading = true;
   String? error;
 
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 2, vsync: this);
+    _loadUidAndHistory();
+  }
+
+  Future<void> _loadUidAndHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    _uid = prefs.getString('userId');
+    if (_uid != null) {
+      await _loadHistory();
+    } else {
+      setState(() {
+        loading = false;
+        error = '사용자 정보를 불러올 수 없습니다.';
+      });
+    }
+  }
+
+  Future<void> _loadHistory() async {
+    if (_uid == null) return;
+
+    setState(() {
+      loading = true;
+      error = null;
+    });
+
+    try {
+      // Fetch point history
+      final pointHistory = await ApiClient.fetchPointHistory(_uid!);
+      final fetchedRewards = pointHistory.map((e) => HistoryRecord(
+        title: e['title'] ?? '',
+        subtitle: e['detail'] ?? '',
+        timeAgo: _formatTimeAgo(e['created_at']),
+        kind: HistoryKind.reward,
+      )).toList();
+
+      // Fetch gift card transactions
+      final giftCardTransactions = await ApiClient.fetchGiftCardTransactions(_uid!);
+      final fetchedPurchases = giftCardTransactions.map((e) => HistoryRecord(
+        title: '${e['amount']}원 상품권 교환',
+        subtitle: '코드: ${e['code']}',
+        timeAgo: _formatTimeAgo(e['issued_at']),
+        kind: HistoryKind.purchase,
+      )).toList();
+
+      if (mounted) {
+        setState(() {
+          purchases = fetchedPurchases;
+          rewards = fetchedRewards;
+          loading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load history: $e');
+      if (mounted) {
+        setState(() {
+          loading = false;
+          error = '내역을 불러오는데 실패했습니다: ${e.toString()}';
+        });
+      }
+    }
+  }
+
+  String _formatTimeAgo(dynamic timestamp) {
+    if (timestamp == null) return '';
+    // Assuming timestamp is a String in ISO 8601 format or a Map with _seconds and _nanoseconds
+    DateTime dateTime;
+    if (timestamp is String) {
+      dateTime = DateTime.parse(timestamp);
+    } else if (timestamp is Map && timestamp.containsKey('_seconds')) {
+      dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp['_seconds'] * 1000);
+    } else {
+      return '';
+    }
+
+    final Duration diff = DateTime.now().difference(dateTime);
+
+    if (diff.inDays > 365) {
+      return '${(diff.inDays / 365).floor()}년 전';
+    } else if (diff.inDays > 30) {
+      return '${(diff.inDays / 30).floor()}개월 전';
+    } else if (diff.inDays > 7) {
+      return '${(diff.inDays / 7).floor()}주 전';
+    } else if (diff.inDays > 0) {
+      return '${diff.inDays}일 전';
+    } else if (diff.inHours > 0) {
+      return '${diff.inHours}시간 전';
+    } else if (diff.inMinutes > 0) {
+      return '${diff.inMinutes}분 전';
+    } else {
+      return '방금 전';
+    }
   }
 
   @override
@@ -36,9 +124,7 @@ class _HistoryScreenState extends State<HistoryScreen>
 
   // 🔄 풀투리프레시
   Future<void> _onRefresh() async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    setState(() {});
+    await _loadHistory();
   }
 
   @override
@@ -220,4 +306,23 @@ class _EmptyView extends StatelessWidget {
           style: const TextStyle(fontSize: 14, color: Colors.black38)),
     );
   }
+}
+
+enum HistoryKind {
+  purchase, // 구매
+  reward,   // 적립
+}
+
+class HistoryRecord {
+  final String title;
+  final String subtitle;
+  final String timeAgo;
+  final HistoryKind kind;
+
+  const HistoryRecord({
+    required this.title,
+    required this.subtitle,
+    required this.timeAgo,
+    required this.kind,
+  });
 }

@@ -205,6 +205,21 @@ class ApiClient {
     return (m['balance'] as num).toInt();
   }
 
+  // -----------------------------
+  // Exchange: 포인트로 상품권 교환
+  // -----------------------------
+  static Future<void> exchangePoints(String uid, int amount) async {
+    final url = Uri.parse('$baseUrl/api/exchange/$uid');
+    final res = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'amount': amount}),
+    );
+    if (res.statusCode != 200) {
+      throw Exception('exchangePoints failed: ${res.statusCode} ${res.body}');
+    }
+  }
+
   /// 포인트 히스토리 조회 (source: all|receipt|event|invite)
   static Future<List<Map<String, dynamic>>> fetchPointHistory(
       String uid, {
@@ -226,6 +241,20 @@ class ApiClient {
     final list = jsonDecode(res.body) as List<dynamic>;
     return list.cast<Map<String, dynamic>>();
   }
+
+  // -----------------------------
+  // Giftcard: 상품권 거래 내역 조회
+  // -----------------------------
+  static Future<List<Map<String, dynamic>>> fetchGiftCardTransactions(String uid) async {
+    final url = Uri.parse('$baseUrl/api/giftcards/history/$uid');
+    final res = await http.get(url);
+    if (res.statusCode != 200) {
+      throw Exception('fetchGiftCardTransactions failed: ${res.statusCode} ${res.body}');
+    }
+    final list = jsonDecode(res.body) as List<dynamic>;
+    return list.cast<Map<String, dynamic>>();
+  }
+
   static Future<Map<String, dynamic>> updateAddress({
     required String uid,
     String? address,

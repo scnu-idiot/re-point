@@ -1,7 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_client.dart';
 
-class StoreScreen extends StatelessWidget {
+class StoreScreen extends StatefulWidget {
   const StoreScreen({super.key});
+
+  @override
+  State<StoreScreen> createState() => _StoreScreenState();
+}
+
+class _StoreScreenState extends State<StoreScreen> {
+  String? _uid;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUid();
+  }
+
+  Future<void> _loadUid() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _uid = prefs.getString('userId');
+    });
+  }
 
   // 상품 정보 리스트
   final List<_Item> items = const [
@@ -83,15 +105,22 @@ class StoreScreen extends StatelessWidget {
                   final item = items[index];
                   return GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => PurchaseScreen(
-                            priceText: item.label,      // '5,000 포인트'
-                            // userPointBalance: 21340,  // 백엔드 연동 후 실제 값 전달 (21340에 실제 값 넣기)
+                      if (_uid != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PurchaseScreen(
+                              uid: _uid!,
+                              priceText: item.label, // '5,000 포인트'
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      } else {
+                        // Optionally show a message if UID is not available
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('사용자 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.')),
+                        );
+                      }
                     },
                     child: Column(
                       children: [
@@ -129,15 +158,51 @@ class _Item {
 }
 
 // ======================= 구매 화면 =======================
-class PurchaseScreen extends StatelessWidget {
+class PurchaseScreen extends StatefulWidget {
+  final String uid;
   final String priceText;
-  final int userPointBalance;
 
   const PurchaseScreen({
     super.key,
+    required this.uid,
     required this.priceText,
-    this.userPointBalance = 5000,   // 일단 기본값 5천원으로 설정
   });
+
+  @override
+  State<PurchaseScreen> createState() => _PurchaseScreenState();
+}
+
+class _PurchaseScreenState extends State<PurchaseScreen> {
+  int _userPointBalance = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserPoints();
+  }
+
+  Future<void> _loadUserPoints() async {
+    try {
+      final balance = await ApiClient.fetchUserPoint(widget.uid);
+      if (mounted) {
+        setState(() {
+          _userPointBalance = balance;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load user points: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('포인트를 불러오는데 실패했습니다.')),
+      );
+    }
+  }
 
   int _extractAmount(String s) {
     // '5,000 포인트' -> 5000
@@ -150,9 +215,20 @@ class PurchaseScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final amount = _extractAmount(priceText);
-    final lack = userPointBalance < amount;
-    final remain = (userPointBalance - amount).clamp(0, 1 << 31);
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('결제 확인', style: TextStyle(fontWeight: FontWeight.w700)),
+          centerTitle: true,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final amount = _extractAmount(widget.priceText);
+    final lack = _userPointBalance < amount;
+    final remain = (_userPointBalance - amount).clamp(0, 1 << 31);
+
 
     const purple = Color(0xFF5A3DF0);
     const bgTop = Color(0xFFFFF5FB);
@@ -285,24 +361,34 @@ class PurchaseScreen extends StatelessWidget {
                     ),
                   );
                   if (ok == true && context.mounted) {
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (_) => AlertDialog(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        title: const Row(
-                          children: [
-                            Icon(Icons.check_circle, color: Colors.green),
-                            SizedBox(width: 8),
-                            Text('결제 완료'),
+                    try {
+                      await ApiClient.exchangePoints(widget.uid, amount);
+                      if (!context.mounted) return;
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) => AlertDialog(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          title: const Row(
+                            children: [
+                              Icon(Icons.check_circle, color: Colors.green),
+                              SizedBox(width: 8),
+                              Text('결제 완료'),
+                            ],
+                          ),
+                          content: const Text('교환 코드가 발급되었습니다.\n알림함 또는 구매내역에서 확인하세요.'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(context), child: const Text('닫기')),
                           ],
                         ),
-                        content: const Text('교환 코드가 발급되었습니다.\n알림함 또는 구매내역에서 확인하세요.'),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('닫기')),
-                        ],
-                      ),
-                    );
+                      );
+                    } catch (e) {
+                      debugPrint('Exchange failed: $e');
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('결제 실패: ${e.toString()}')),
+                      );
+                    }
                   }
                 },
                 child: const Text('결제하기', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),

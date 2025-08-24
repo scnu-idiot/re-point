@@ -45,6 +45,7 @@ class GoogleLoginService {
 
     // (선택) 백엔드가 지역을 돌려주면 region_set 플래그도 설정
     final hasRegion = (saved['regionProvince'] ?? '').toString().isNotEmpty;
+    debugPrint('GoogleLoginService: regionProvince from backend: ${saved['regionProvince']}');
     await prefs.setBool('region_set', hasRegion);
 
     return saved;
