@@ -18,27 +18,30 @@ class GoogleLoginService {
     final user = await g.signIn();
     if (user == null) throw Exception('사용자가 로그인 취소');
 
-    final auth = await user.authentication;
-    final idToken = auth.idToken;
-    if (idToken == null || idToken.isEmpty) {
-      throw Exception('idToken을 가져오지 못했습니다');
-    }
+    final uid = 'google:${user.id}';
+    final name = user.displayName ?? '';
+    final email = user.email;
+    final photo = user.photoUrl ?? '';
 
-    // 백엔드로 전송 → 검증 + Firestore upsert
-    final saved = await ApiClient.googleLoginByIdToken(
-      idToken: idToken,
-      address: address,
+    // ✅ 백엔드에 upsert (회원 등록/수정)
+    final saved = await ApiClient.upsertLogin(
+      uid: uid,
+      name: name,
+      email: email,
+      profileUrl: photo,
+      loginProvider: 'google',
+      address: address, // 초기값
     );
 
     // 로컬 세션 저장 (카카오와 동일 키)
     final prefs = await SharedPreferences.getInstance();
-    final uid = (saved['uid'] as String?) ?? '';
-    final name = (saved['name'] as String?) ?? '';
-    final email = (saved['email'] as String?) ?? '';
-    await prefs.setString('userId', uid);
+    await prefs.setBool('isLoggedIn', true);
     await prefs.setString('loginProvider', 'google');
-    await prefs.setString('userName', name);
-    await prefs.setString('userEmail', email);
+    await prefs.setString('userId', uid);
+    await prefs.setString('userEmail', saved['email'] ?? email);
+    await prefs.setString('userName', saved['name'] ?? name);
+    await prefs.setString('userPhoto', saved['profileUrl'] ?? photo);
+
 
     // (선택) 백엔드가 지역을 돌려주면 region_set 플래그도 설정
     final hasRegion = (saved['regionProvince'] ?? '').toString().isNotEmpty;

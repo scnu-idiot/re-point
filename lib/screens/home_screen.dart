@@ -46,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         nickname = prefs.getString('userName') ?? '사용자';
         email = prefs.getString('userEmail') ?? '이메일 정보 없음';
+        profileImageUrl = prefs.getString('userPhoto');
       });
     } else if (loginProvider == 'kakao') {
       if (!mounted) return;

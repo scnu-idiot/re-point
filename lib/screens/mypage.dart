@@ -69,10 +69,12 @@ class _MyPageScreenState extends State<MyPageScreen> {
     if (loginProvider == 'google') {
       final name = prefs.getString('userName');
       final userEmail = prefs.getString('userEmail');
+      final userPhoto = prefs.getString('userPhoto');
       if (!mounted) return;
       setState(() {
         nickname = name ?? '사용자';
         email = userEmail ?? '이메일 정보 없음';
+        profileImageUrl = userPhoto;
       });
     } else if (loginProvider == 'kakao') {
       _loadKakaoProfile();
