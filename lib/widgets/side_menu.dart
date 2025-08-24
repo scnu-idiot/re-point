@@ -108,7 +108,7 @@ class _SideMenuState extends State<SideMenu> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => MyPageScreen(nickname: _nickname),
+                          builder: (_) => const MyPageScreen(),
                         ),
                       );
                     },
@@ -130,7 +130,7 @@ class _SideMenuState extends State<SideMenu> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => InviteScreen(nickname: _nickname),
+                          builder: (_) => const InviteScreen(),
                         ),
                       );
                     },

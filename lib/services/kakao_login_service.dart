@@ -38,8 +38,6 @@ class KakaoLoginService {
       await prefs.setString('userEmail', saved['email'] ?? email);
       await prefs.setString('userName', saved['name'] ?? name);
       await prefs.setString('userPhoto', saved['profileUrl'] ?? photo);
-      // KakaoLoginService.login() 성공 후
-      await prefs.setString('userUid', 'kakao:${user.id}'); // 새 키
       return true;
     } catch (e) {
       // print("카카오 로그인 실패: $e");

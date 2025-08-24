@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Clipboard
+import 'package:shared_preferences/shared_preferences.dart';
 // 백엔드 연결 시 주석 해제하세요.
 // import 'package:http/http.dart' as http;
 
@@ -10,15 +11,12 @@ import '../widgets/profile_appbar.dart';
 /// - 지금은 더미 데이터로 화면 표시
 /// - 추후 /me 연동 시, 아래 주석된 코드와 import(http)만 해제하면 됨
 class InviteScreen extends StatefulWidget {
-  final String nickname;
-
   // ↓ 나중에 실제 엔드포인트/토큰으로 교체 (현재는 사용 안 함)
   // final String meEndpoint;
   // final String authToken;
 
   const InviteScreen({
     super.key,
-    required this.nickname,
     // required this.meEndpoint,
     // required this.authToken,
   });
@@ -35,12 +33,21 @@ class _InviteScreenState extends State<InviteScreen> {
 
   bool loading = false; // 백엔드 붙이면 true로 시작해서 로딩 처리
   String? error;        // 백엔드 에러 메시지용
+  String nickname = '사용자';
 
   @override
   void initState() {
     super.initState();
+    _loadNickname();
     // 나중에 백엔드 연결 시 주석 해제
     // _loadMe();
+  }
+
+  Future<void> _loadNickname() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      nickname = prefs.getString('userName') ?? '사용자';
+    });
   }
 
   /// 🔗 백엔드 연결 (나중에 주석 해제해서 사용)
@@ -125,7 +132,7 @@ class _InviteScreenState extends State<InviteScreen> {
                 const SizedBox(height: 16),
 
                 Text(
-                  '친구를 초대하면\n친구도 나도 100 포인트 적립',
+                  '$nickname님을 초대하면\n친구도 나도 100 포인트 적립',
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w800,
                     height: 1.25,

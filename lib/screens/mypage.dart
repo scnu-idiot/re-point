@@ -18,8 +18,7 @@ import 'region_setting_screen.dart';
 import '../services/api_client.dart';
 
 class MyPageScreen extends StatefulWidget {
-  final String nickname;
-  const MyPageScreen({super.key, required this.nickname});
+  const MyPageScreen({super.key});
 
   @override
   State<MyPageScreen> createState() => _MyPageScreenState();
@@ -47,7 +46,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
   int currentMonth = DateTime.now().month;
 
   // ==== 기본 데이터 ====
-  String email = 'walkholic@likelion.org';
+  String nickname = '사용자';
+  String email = '이메일 정보 없음';
   int points = 0;
 
   // 프로필 & 지역
@@ -57,9 +57,26 @@ class _MyPageScreenState extends State<MyPageScreen> {
   @override
   void initState() {
     super.initState();
-    _loadKakaoProfile();
+    _loadUserProfile();
     _loadRegion();
     _loadPoints();
+  }
+
+  Future<void> _loadUserProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    final loginProvider = prefs.getString('loginProvider');
+
+    if (loginProvider == 'google') {
+      final name = prefs.getString('userName');
+      final userEmail = prefs.getString('userEmail');
+      if (!mounted) return;
+      setState(() {
+        nickname = name ?? '사용자';
+        email = userEmail ?? '이메일 정보 없음';
+      });
+    } else if (loginProvider == 'kakao') {
+      _loadKakaoProfile();
+    }
   }
 
   Future<void> _loadPoints() async {
@@ -81,6 +98,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
       final user = await UserApi.instance.me();
       if (!mounted) return;
       setState(() {
+        nickname = user.kakaoAccount?.profile?.nickname ?? '사용자';
         profileImageUrl = user.kakaoAccount?.profile?.profileImageUrl;
         email = user.kakaoAccount?.email ?? email;
       });
@@ -230,7 +248,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
             children: [
               Expanded(
                 child: Text(
-                  '${widget.nickname} 님',
+                  '$nickname 님',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -450,7 +468,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                     context,
                     MaterialPageRoute(
                         builder: (_) =>
-                            InviteScreen(nickname: widget.nickname)),
+                            const InviteScreen()),
                   );
                 }),
               ),

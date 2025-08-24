@@ -33,8 +33,12 @@ class GoogleLoginService {
     // 로컬 세션 저장 (카카오와 동일 키)
     final prefs = await SharedPreferences.getInstance();
     final uid = (saved['uid'] as String?) ?? '';
+    final name = (saved['name'] as String?) ?? '';
+    final email = (saved['email'] as String?) ?? '';
     await prefs.setString('userId', uid);
     await prefs.setString('loginProvider', 'google');
+    await prefs.setString('userName', name);
+    await prefs.setString('userEmail', email);
 
     // (선택) 백엔드가 지역을 돌려주면 region_set 플래그도 설정
     final hasRegion = (saved['regionProvince'] ?? '').toString().isNotEmpty;

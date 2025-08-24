@@ -23,7 +23,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String? nickname;
+  String nickname = '사용자';
   String? email;
   String? profileImageUrl;
 
@@ -33,8 +33,41 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    loadUser();
+    _loadUserProfile();
     _loadPoints();
+  }
+
+  Future<void> _loadUserProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    final loginProvider = prefs.getString('loginProvider');
+
+    if (loginProvider == 'google') {
+      if (!mounted) return;
+      setState(() {
+        nickname = prefs.getString('userName') ?? '사용자';
+        email = prefs.getString('userEmail') ?? '이메일 정보 없음';
+      });
+    } else if (loginProvider == 'kakao') {
+      if (!mounted) return;
+      setState(() {
+        nickname = prefs.getString('userName') ?? '사용자';
+        email = prefs.getString('userEmail') ?? '이메일 정보 없음';
+      });
+      _loadKakaoProfile();
+    }
+  }
+
+  Future<void> _loadKakaoProfile() async {
+    try {
+      final user = await UserApi.instance.me();
+      setState(() {
+        nickname = user.kakaoAccount?.profile?.nickname ?? '사용자';
+        email = user.kakaoAccount?.email ?? '이메일 없음';
+        profileImageUrl = user.kakaoAccount?.profile?.profileImageUrl;
+      });
+    } catch (e) {
+      debugPrint('유저 정보 불러오기 실패: $e');
+    }
   }
 
   Future<void> _loadPoints() async {
@@ -48,19 +81,6 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() => points = balance);
     } catch (e) {
       debugPrint('포인트 불러오기 실패: $e');
-    }
-  }
-
-  Future<void> loadUser() async {
-    try {
-      final user = await UserApi.instance.me();
-      setState(() {
-        nickname = user.kakaoAccount?.profile?.nickname ?? '사용자';
-        email = user.kakaoAccount?.email ?? '이메일 없음';
-        profileImageUrl = user.kakaoAccount?.profile?.profileImageUrl;
-      });
-    } catch (e) {
-      debugPrint('유저 정보 불러오기 실패: $e');
     }
   }
 
@@ -143,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.push(
                   context,
                     MaterialPageRoute(
-                      builder: (_) => MyPageScreen(nickname: nickname ?? '사용자'),
+                      builder: (_) => const MyPageScreen(),
                     ),
                 );
               },
@@ -162,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            '${nickname ?? "사용자"} 님',
+                            '$nickname 님',
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
