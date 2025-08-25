@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 개발용 HTTP 허용(에뮬레이터/로컬/EC2) -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>   <!-- Android 에뮬레이터 -->
+        <domain includeSubdomains="false">localhost</domain>  <!-- 로컬 테스트 -->
+        <domain includeSubdomains="false">43.203.196.40</domain> <!-- EC2 퍼블릭 IP -->
+    </domain-config>
+</network-security-config>
