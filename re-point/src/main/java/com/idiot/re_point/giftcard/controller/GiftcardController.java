@@ -1,6 +1,7 @@
 package com.idiot.re_point.giftcard.controller;
 
 import com.idiot.re_point.giftcard.dto.GiftcardDto;
+import com.idiot.re_point.giftcard.model.GiftCardTransaction;
 import com.idiot.re_point.giftcard.service.GiftcardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,5 +21,11 @@ public class GiftcardController {
     public ResponseEntity<List<GiftcardDto>> listActive()
             throws ExecutionException, InterruptedException {
         return ResponseEntity.ok(giftcardService.listActive());
+    }
+
+    @GetMapping("/history/{uid}")
+    public ResponseEntity<List<GiftCardTransaction>> listTransactions(@PathVariable String uid)
+            throws ExecutionException, InterruptedException {
+        return ResponseEntity.ok(giftcardService.listTransactions(uid));
     }
 }
