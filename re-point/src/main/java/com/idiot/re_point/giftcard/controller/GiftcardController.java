@@ -23,7 +23,7 @@ public class GiftcardController {
         return ResponseEntity.ok(giftcardService.listActive());
     }
 
-    @GetMapping("/history/{uid}")
+    @GetMapping("/{uid}/history")
     public ResponseEntity<List<GiftCardTransaction>> listTransactions(@PathVariable String uid)
             throws ExecutionException, InterruptedException {
         return ResponseEntity.ok(giftcardService.listTransactions(uid));
