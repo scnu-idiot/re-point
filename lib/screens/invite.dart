@@ -28,7 +28,7 @@ class InviteScreen extends StatefulWidget {
 class _InviteScreenState extends State<InviteScreen> {
   // ====== 더미 데이터(화면 확인용) ======
   String? referralLink = 'https://your.page.link/abcd?ref=AB12CD34';
-  int invitedCount = 4;
+    int invitedCount = 0;
   int get earnedCredit => invitedCount * 100;
 
   bool loading = false; // 백엔드 붙이면 true로 시작해서 로딩 처리

@@ -1,0 +1,1 @@
+ C:\\flutter_projects\\re-point\\.dart_tool\\flutter_build\\bc15b5e8539033d47863d0d6aa4c9a51\\native_assets.json: 
