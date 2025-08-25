@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_client.dart';
 
 enum CaptureStep { bizno, time, amount, review }
 
@@ -27,11 +29,20 @@ class _ReceiptScanScreenState extends State<ReceiptScanScreen> {
   String? _timeDisplay;  // 화면표시(+09:00 제거)
   int? _amount;
   String _lastRaw = "-";
+  String? _uid;
 
   @override
   void initState() {
     super.initState();
+    _loadUid();
     _initCamera();
+  }
+
+  Future<void> _loadUid() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _uid = prefs.getString('userId');
+    });
   }
 
   Future<void> _initCamera() async {
@@ -394,9 +405,26 @@ class _ReceiptScanScreenState extends State<ReceiptScanScreen> {
                       child: ElevatedButton.icon(
                         onPressed: _busy
                             ? null
-                            : () {
+                            : () async {
                           if (_step == CaptureStep.review) {
-                            _showCenterDialog("인식 완료! 저장/전송 로직을 연결해 주세요.");
+                            if (_uid == null || _bizno == null || _timeIso == null || _amount == null) {
+                              _showCenterDialog("모든 정보를 인식해야 합니다.");
+                              return;
+                            }
+                            try {
+                              final earnedPoints = await ApiClient.earnByReceipt(
+                                _uid!,
+                                receiptId: _bizno!,
+                                title: "영수증 인식 적립",
+                                detail: "${_timeDisplay!} - ${_amount!}원",
+                              );
+                              if (!mounted) return;
+                              _showCenterDialog("영수증 인식 완료! ${earnedPoints} 포인트 적립!");
+                            } catch (e) {
+                              debugPrint('Error earning points: $e');
+                              if (!mounted) return;
+                              _showCenterDialog("포인트 적립에 실패했습니다. 다시 시도해주세요.");
+                            }
                           } else {
                             _nextStep();
                           }

@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8323f094-8834-4618-8c1d-a604b9211120" name="Changes" comment="서버 연결">
+    <list default="true" id="8323f094-8834-4618-8c1d-a604b9211120" name="Changes" comment="수정">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/app/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/src/main/AndroidManifest.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/receipt_scan_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/receipt_scan_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/services/api_client.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/services/api_client.dart" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -288,7 +289,15 @@
       <option name="project" value="LOCAL" />
       <updated>1756082318150</updated>
     </task>
-    <option name="localTasksCounter" value="26" />
+    <task id="LOCAL-00026" summary="수정">
+      <option name="closed" value="true" />
+      <created>1756106282054</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1756106282054</updated>
+    </task>
+    <option name="localTasksCounter" value="27" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -335,6 +344,7 @@
     <MESSAGE value="프로필 사진 오류 수정" />
     <MESSAGE value="스토어 백엔드 연결 후 알림과 구매내역까지 연결" />
     <MESSAGE value="서버 연결" />
-    <option name="LAST_COMMIT_MESSAGE" value="서버 연결" />
+    <MESSAGE value="수정" />
+    <option name="LAST_COMMIT_MESSAGE" value="수정" />
   </component>
 </project>

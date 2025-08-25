@@ -13,6 +13,7 @@ class ApiClient {
   // •	Android 에뮬레이터 → http://10.0.2.2:8080
   // •	iOS 시뮬레이터 → http://localhost:8080
   static const String baseUrl = 'http://43.203.196.40';
+  //static const String baseUrl = 'http://localhost:8080';
 
   static Map<String, String> get _jsonHeaders => {
     'Content-Type': 'application/json',
